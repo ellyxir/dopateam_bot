@@ -9,17 +9,22 @@ defmodule DopaTeam.Consumer do
   @channels [@sdr_channel, @bot_test_dm_asking]
 
   def handle_event(
-        {:MESSAGE_CREATE, %Nostrum.Struct.Message{author: %{bot: is_bot}, channel_id: channel_id} = msg, _ws_state}
+        {:MESSAGE_CREATE, %Nostrum.Struct.Message{author: %{bot: is_bot}, channel_id: channel_id, member: %{roles: author_roles}, content: content} = msg, _ws_state}
       )
       when channel_id in @channels and is_nil(is_bot) do
-    if has_mentions?(msg.content) do
+    if has_mentions?(content) do
         Api.create_message(
-          msg.channel_id,
-          "message has mentions, list of user ids mentioned=#{inspect get_mentions(msg.content)}"
+          channel_id,
+          "message has mentions, list of user ids mentioned=#{inspect get_mentions(content)}, author roles=#{inspect author_roles}"
         )
     end
   end
 
+  # # get their roles
+  # def get_roles(user_id) when is_integer(user_id) do
+  #   Nostrum.Api.get_guild_member(guild_id, user_id)
+  # end
+  
   @doc """
   does the passed in string have a discord mention which looks like <@id> where id is a big integer
   """
