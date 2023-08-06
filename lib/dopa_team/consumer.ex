@@ -22,32 +22,53 @@ defmodule DopaTeam.Consumer do
       )
       when channel_id in @channels and is_nil(is_bot) do
     if has_mentions?(content) do
+      mentioned_users = get_mentions(content)
+      mentioned_string =
+        Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
+          is_allowed = is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)        
+          if not is_allowed do
+            "#{acc}<@#{author_id}> Please note that <@#{mentioned_user_id}> is a minor and requesting to DM a minor is not allowed. See https://discord.com/channels/821855117539541003/928601274352541718/1086113286438789120 for more information.\n"
+          else
+            acc
+          end
+        end)
+
+      if mentioned_string != "" do
+        Api.create_message(
+          channel_id,
+          mentioned_string
+        )
+      end
+    end
+  end
+
+  @spec is_dm_request_allowed?(Nostrum.Struct.Guild.id(), [Nostrum.Struct.Guild.Role.id()], Nostrum.Struct.User.id()) :: boolean()
+  def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id) 
+      when is_integer(guild_id) and is_list(author_roles) and is_integer(mentioned_user_id) do
       server_roles = get_server_roles(guild_id)
       {:ok, adult_role_id} = get_role_id_by_name(server_roles, @adult_role_name)
       {:ok, minor_role_id} = get_role_id_by_name(server_roles, @minor_role_name)
 
-      mentioned_users = get_mentions(content)
-
-      mentioned_string =
-        Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
-          is_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
-          is_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
-          is_bot = is_user_bot?(mentioned_user_id)
-          
-          "#{acc}roles for mentioned user <@#{mentioned_user_id}>, is_adult?=#{is_adult}, is_minor?=#{is_minor}, is_bot?=#{is_bot}\n"
-        end)
-
       is_author_adult = Enum.member?(author_roles, adult_role_id)
-      is_author_minor = Enum.member?(author_roles, minor_role_id)
+      #is_author_minor = Enum.member?(author_roles, minor_role_id)
 
-      Api.create_message(
-        channel_id,
-        "message has mentions, author (<@#{author_id}>) is_adult?=#{is_author_adult}, is_minor?=#{is_author_minor}\n" <>
-          mentioned_string
-      )
-    end
+      #is_mentioned_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
+      is_mentioned_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
+      _is_mentioned_bot = is_user_bot?(mentioned_user_id)
+
+      cond do
+        # if we are mentioning a bot, who cares
+        # TODO: re-add this, turning off temporarily for testing with a bot as minor
+        #is_mentioned_bot -> true
+
+        # if author is adult and mentioned user is minor
+        is_author_adult && is_mentioned_minor -> false
+
+        # otherwise its all good
+        true -> true 
+      end    
   end
-
+  
   @spec is_user_bot?(Nostrum.Struct.User.id()) :: boolean
   def is_user_bot?(user_id) do
     {:ok, %Nostrum.Struct.User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
