@@ -27,15 +27,18 @@ defmodule DopaTeam.Consumer do
       {:ok, minor_role_id} = get_role_id_by_name(server_roles, @minor_role_name)
 
       mentioned_users = get_mentions(content)
+
       mentioned_string =
         Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
           is_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
           is_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
+
           "#{acc}roles for mentioned user <@#{mentioned_user_id}>, is_adult?=#{is_adult}, is_minor?=#{is_minor}\n"
         end)
 
-      is_author_adult = Enum.member?(author_roles, adult_role_id) 
+      is_author_adult = Enum.member?(author_roles, adult_role_id)
       is_author_minor = Enum.member?(author_roles, minor_role_id)
+
       Api.create_message(
         channel_id,
         "message has mentions, author (<@#{author_id}>) is_adult?=#{is_author_adult}, is_minor?=#{is_author_minor}\n" <>
@@ -44,17 +47,24 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  @spec user_has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), Nostrum.Struct.Guild.Role.id()) :: boolean()
+  @spec user_has_role?(
+          Nostrum.Struct.Guild.id(),
+          Nostrum.Struct.User.id(),
+          Nostrum.Struct.Guild.Role.id()
+        ) :: boolean()
   def user_has_role?(guild_id, user_id, role_id) do
     user_roles = get_user_roles(guild_id, user_id)
     Enum.member?(user_roles, role_id)
   end
 
   # get their roles
-  @spec get_user_roles(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id()) :: [Nostrum.Struct.Guild.Role.id()]
+  @spec get_user_roles(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id()) :: [
+          Nostrum.Struct.Guild.Role.id()
+        ]
   def get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
     {:ok, %Nostrum.Struct.Guild.Member{roles: roles}} =
       Nostrum.Api.get_guild_member(guild_id, user_id)
+
     roles
   end
 
