@@ -5,18 +5,18 @@ defmodule DopaTeam.Consumer do
   require Logger
 
   @bot_message_delete_time_ms 30000
-  
+
   # SDR = serveur de raf
-  @live_guild_id 821855117539541003
+  @live_guild_id 821_855_117_539_541_003
   @bot_test_guild_id 964_397_371_213_615_124
 
   # the channel is where we want audit logging to go to
   @logging_channel %{
-    @live_guild_id => nil,
+    @live_guild_id => 1_137_832_902_370_017_301,
     @bot_test_guild_id => 964_397_371_666_604_076
   }
 
-  @live_dm_asking_channel 928601274352541718
+  @live_dm_asking_channel 928_601_274_352_541_718
   @bot_test_dm_asking_channel 964_397_371_666_604_079
 
   # channels we are listening to
@@ -46,11 +46,12 @@ defmodule DopaTeam.Consumer do
         msg =
           "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. See https://discord.com/channels/821855117539541003/928601274352541718/1086113286438789120 for more information.\n"
 
-        {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} = Api.create_message(
-          channel_id,
-          content: msg,
-          message_reference: %{message_id: msg_id}
-        )
+        {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} =
+          Api.create_message(
+            channel_id,
+            content: msg,
+            message_reference: %{message_id: msg_id}
+          )
 
         # delete original message
         case Nostrum.Api.delete_message(original_message) do
@@ -65,12 +66,14 @@ defmodule DopaTeam.Consumer do
 
         log_illegal_dm_request(guild_id, author_id, mentioned_users)
 
-        pid = spawn(fn ->
-          receive do
-            {:delete, channel_id, bot_msg_id} ->
-              Nostrum.Api.delete_message(channel_id, bot_msg_id)
-          end
-        end)
+        pid =
+          spawn(fn ->
+            receive do
+              {:delete, channel_id, bot_msg_id} ->
+                Nostrum.Api.delete_message(channel_id, bot_msg_id)
+            end
+          end)
+
         Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
       end
     end
