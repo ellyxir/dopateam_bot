@@ -7,20 +7,20 @@ defmodule DopaTeam.Consumer do
   @bot_message_delete_time_ms 30000
   
   # SDR = serveur de raf
-  @sdr_guild_id 821_855_117_539_541_003
+  @live_guild_id 821855117539541003
   @bot_test_guild_id 964_397_371_213_615_124
 
   # the channel is where we want audit logging to go to
   @logging_channel %{
-    @sdr_guild_id => 854_033_395_243_286_549,
+    @live_guild_id => nil,
     @bot_test_guild_id => 964_397_371_666_604_076
   }
 
-  @sdr_channel 849_267_950_988_820_482
+  @live_dm_asking_channel 928601274352541718
   @bot_test_dm_asking_channel 964_397_371_666_604_079
 
   # channels we are listening to
-  @channels [@sdr_channel, @bot_test_dm_asking_channel]
+  @channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
 
   # roles we care about, this needs to match the role name exactly in the server
   @adult_role_name "18+"
