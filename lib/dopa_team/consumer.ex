@@ -6,7 +6,7 @@ defmodule DopaTeam.Consumer do
 
   @bot_message_delete_time_ms 30000
 
-  # SDR = serveur de raf
+  # the discord server ids
   @live_guild_id 821_855_117_539_541_003
   @bot_test_guild_id 964_397_371_213_615_124
 
