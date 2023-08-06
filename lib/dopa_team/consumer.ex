@@ -4,16 +4,23 @@ defmodule DopaTeam.Consumer do
   alias Nostrum.Api
   require Logger
 
+  # SDR = serveur de raf
   @sdr_guild_id 821_855_117_539_541_003
   @bot_test_guild_id 964_397_371_213_615_124
+
+  # the channel is where we want audit logging to go to
   @logging_channel %{
-    @sdr_guild_id => nil,
+    @sdr_guild_id => 854_033_395_243_286_549,
     @bot_test_guild_id => 964_397_371_666_604_076
   }
 
   @sdr_channel 849_267_950_988_820_482
   @bot_test_dm_asking_channel 964_397_371_666_604_079
+
+  # channels we are listening to
   @channels [@sdr_channel, @bot_test_dm_asking_channel]
+
+  # roles we care about, this needs to match the role name exactly in the server
   @adult_role_name "18+"
   @minor_role_name "<18"
   @closed_dm_role_name "Closed DM"
@@ -27,7 +34,7 @@ defmodule DopaTeam.Consumer do
            channel_id: channel_id,
            member: %{roles: author_roles},
            content: content
-         }, _ws_state}
+         } = original_message, _ws_state}
       )
       when channel_id in @channels and is_nil(is_bot) do
     if has_mentions?(content) do
@@ -42,6 +49,17 @@ defmodule DopaTeam.Consumer do
           content: msg,
           message_reference: %{message_id: msg_id}
         )
+
+        # delete original message
+        case Nostrum.Api.delete_message(original_message) do
+          {:error, reason} ->
+            Logger.error(
+              "could not delete message id #{msg_id} in channel #{channel_id}, reason=#{inspect(reason)}"
+            )
+
+          {:ok} ->
+            {:ok}
+        end
 
         log_illegal_dm_request(guild_id, author_id, mentioned_users)
       end
