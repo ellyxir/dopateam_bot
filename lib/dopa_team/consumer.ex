@@ -4,6 +4,8 @@ defmodule DopaTeam.Consumer do
   alias Nostrum.Api
   require Logger
 
+  @bot_message_delete_time_ms 30000
+  
   # SDR = serveur de raf
   @sdr_guild_id 821_855_117_539_541_003
   @bot_test_guild_id 964_397_371_213_615_124
@@ -44,7 +46,7 @@ defmodule DopaTeam.Consumer do
         msg =
           "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. See https://discord.com/channels/821855117539541003/928601274352541718/1086113286438789120 for more information.\n"
 
-        Api.create_message(
+        {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} = Api.create_message(
           channel_id,
           content: msg,
           message_reference: %{message_id: msg_id}
@@ -62,6 +64,14 @@ defmodule DopaTeam.Consumer do
         end
 
         log_illegal_dm_request(guild_id, author_id, mentioned_users)
+
+        pid = spawn(fn ->
+          receive do
+            {:delete, channel_id, bot_msg_id} ->
+              Nostrum.Api.delete_message(channel_id, bot_msg_id)
+          end
+        end)
+        Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
       end
     end
   end
