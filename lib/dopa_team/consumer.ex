@@ -32,8 +32,9 @@ defmodule DopaTeam.Consumer do
         Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
           is_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
           is_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
-
-          "#{acc}roles for mentioned user <@#{mentioned_user_id}>, is_adult?=#{is_adult}, is_minor?=#{is_minor}\n"
+          is_bot = is_user_bot?(mentioned_user_id)
+          
+          "#{acc}roles for mentioned user <@#{mentioned_user_id}>, is_adult?=#{is_adult}, is_minor?=#{is_minor}, is_bot?=#{is_bot}\n"
         end)
 
       is_author_adult = Enum.member?(author_roles, adult_role_id)
@@ -44,6 +45,16 @@ defmodule DopaTeam.Consumer do
         "message has mentions, author (<@#{author_id}>) is_adult?=#{is_author_adult}, is_minor?=#{is_author_minor}\n" <>
           mentioned_string
       )
+    end
+  end
+
+  @spec is_user_bot?(Nostrum.Struct.User.id()) :: boolean
+  def is_user_bot?(user_id) do
+    {:ok, %Nostrum.Struct.User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
+
+    case is_bot do
+      nil -> false
+      val when is_boolean(val) -> val
     end
   end
 
