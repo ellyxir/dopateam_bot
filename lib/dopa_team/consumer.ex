@@ -13,7 +13,7 @@ defmodule DopaTeam.Consumer do
   def handle_event(
         {:MESSAGE_CREATE,
          %Nostrum.Struct.Message{
-           author: %{bot: is_bot},
+           author: %{id: author_id, bot: is_bot},
            guild_id: guild_id,
            channel_id: channel_id,
            member: %{roles: author_roles},
@@ -22,40 +22,44 @@ defmodule DopaTeam.Consumer do
       )
       when channel_id in @channels and is_nil(is_bot) do
     if has_mentions?(content) do
-      mentioned_users = get_mentions(content)
-
-      mentioned_string =
-        Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
-          mentioned_user_roles = get_roles(guild_id, mentioned_user_id)
-
-          acc <>
-            "roles for mentioned user #{mentioned_user_id}, roles=#{inspect(mentioned_user_roles)}\n"
-        end)
-
       server_roles = get_server_roles(guild_id)
       {:ok, adult_role_id} = get_role_id_by_name(server_roles, @adult_role_name)
       {:ok, minor_role_id} = get_role_id_by_name(server_roles, @minor_role_name)
 
+      mentioned_users = get_mentions(content)
+      mentioned_string =
+        Enum.reduce(mentioned_users, "", fn mentioned_user_id, acc ->
+          is_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
+          is_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
+          "#{acc}roles for mentioned user <@#{mentioned_user_id}>, is_adult?=#{is_adult}, is_minor?=#{is_minor}\n"
+        end)
+
+      is_author_adult = Enum.member?(author_roles, adult_role_id) 
+      is_author_minor = Enum.member?(author_roles, minor_role_id)
       Api.create_message(
         channel_id,
-        "message has mentions, list of user ids mentioned=#{inspect(mentioned_users)}\n" <>
-          "author roles=#{inspect(author_roles)}\n" <>
-          "adult role id=#{inspect(adult_role_id)}\nminor role id=#{inspect(minor_role_id)}\n" <>
+        "message has mentions, author (<@#{author_id}>) is_adult?=#{is_author_adult}, is_minor?=#{is_author_minor}\n" <>
           mentioned_string
       )
     end
   end
 
+  @spec user_has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), Nostrum.Struct.Guild.Role.id()) :: boolean()
+  def user_has_role?(guild_id, user_id, role_id) do
+    user_roles = get_user_roles(guild_id, user_id)
+    Enum.member?(user_roles, role_id)
+  end
+
   # get their roles
-  def get_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
+  @spec get_user_roles(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id()) :: [Nostrum.Struct.Guild.Role.id()]
+  def get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
     {:ok, %Nostrum.Struct.Guild.Member{roles: roles}} =
       Nostrum.Api.get_guild_member(guild_id, user_id)
-
     roles
   end
 
   @spec get_role_id_by_name([Nostrum.Struct.Guild.Role.t()], String.t()) ::
-          {:ok, Nostrum.Struct.Guild.Role.t()} | {:error, String.t()}
+          {:ok, Nostrum.Struct.Guild.Role.id()} | {:error, String.t()}
   def get_role_id_by_name(server_roles, role_name)
       when is_list(server_roles) and is_binary(role_name) do
     role_id =
