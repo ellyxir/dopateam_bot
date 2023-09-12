@@ -35,7 +35,7 @@ defmodule DopaTeam.Consumer do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
 
-  @moduledoc """
+  @doc """
   handles an incoming message in one of the channels we are listening to
   """
   def handle_event(
@@ -105,21 +105,56 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  defp handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, msg_content) do
+  defp handle_intro_message(
+         guild_id,
+         channel_id,
+         _msg_id,
+         author_id,
+         author_role_ids,
+         msg_content
+       )
+       when channel_id in @intro_channels do
     # logic: does msg_content have at least a space
     # and is the user "No Intro",
     # if so, we remove "No Intro", and add "Intro"
     server_roles = get_server_roles(guild_id)
     {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
+    {:ok, intro_role_id} = get_role_id_by_name(server_roles, @intro_role_name)
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
-    Api.create_message(
-      channel_id,
-      content:
-        "i see an intro message, author=<@#{author_id}>, does message have space?:#{inspect(msg_has_space)}, does user have no intro role?: #{inspect(is_user_no_intro)}",
-      message_reference: %{message_id: msg_id}
-    )
+    if is_user_no_intro && msg_has_space do
+      {:ok, _updated_member} =
+        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id])
+
+      # Api.create_message(
+      #   channel_id,
+      #   content:
+      #     "adding intro role and removing no intro role for <@#{author_id}>, updated roles=#{inspect updated_member.roles}",
+      #   message_reference: %{message_id: msg_id}
+      # )
+    end
+  end
+
+  @doc """
+  adds roles and removes roles in one pass. will do adds first then removes
+  """
+  def modify_roles(guild_id, user_id, current_role_ids, role_ids_to_add, role_ids_to_remove)
+      when is_integer(guild_id) and is_integer(user_id) and is_list(current_role_ids) and
+             is_list(role_ids_to_add) and is_list(role_ids_to_remove) do
+    # Logger.warning("modify roles: current roles: #{inspect current_role_ids}, to_add: #{inspect role_ids_to_add}, to_remove: #{inspect role_ids_to_remove}")
+    updated_roles =
+      (current_role_ids ++ role_ids_to_add)
+      |> Enum.uniq()
+      |> Enum.reduce([], fn elem, acc ->
+        if Enum.member?(role_ids_to_remove, elem) do
+          acc
+        else
+          [elem | acc]
+        end
+      end)
+
+    Nostrum.Api.modify_guild_member(guild_id, user_id, roles: updated_roles)
   end
 
   @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [
