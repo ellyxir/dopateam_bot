@@ -24,3 +24,7 @@ dopa_team-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# env vars for dev environment
+dev_env.sh
+

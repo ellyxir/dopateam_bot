@@ -16,16 +16,42 @@ defmodule DopaTeam.Consumer do
     @bot_test_guild_id => 964_397_371_666_604_076
   }
 
+  # channels for dm asking
   @live_dm_asking_channel 928_601_274_352_541_718
   @bot_test_dm_asking_channel 964_397_371_666_604_079
 
+  # channels for intro
+  @live_intro_channel 821_862_742_315_106_315
+  @bot_test_intro_channel 964_397_371_314_274_342
+
   # channels we are listening to
-  @channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
+  @dm_channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
+  @intro_channels [@live_intro_channel, @bot_test_intro_channel]
 
   # roles we care about, this needs to match the role name exactly in the server
   @adult_role_name "18+"
   @minor_role_name "<18"
   @closed_dm_role_name "Closed DM"
+  @no_intro_role_name "No Intro"
+  @intro_role_name "Intro"
+
+  @moduledoc """
+  handles an incoming message in one of the channels we are listening to
+  """
+  def handle_event(
+        {:MESSAGE_CREATE,
+         %Nostrum.Struct.Message{
+           id: msg_id,
+           author: %{id: author_id, bot: is_bot},
+           guild_id: guild_id,
+           channel_id: channel_id,
+           member: %{roles: author_role_ids},
+           content: content
+         } = _original_message, _ws_state}
+      )
+      when channel_id in @intro_channels and is_nil(is_bot) do
+    handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content)
+  end
 
   def handle_event(
         {:MESSAGE_CREATE,
@@ -38,7 +64,7 @@ defmodule DopaTeam.Consumer do
            content: content
          } = original_message, _ws_state}
       )
-      when channel_id in @channels and is_nil(is_bot) do
+      when channel_id in @dm_channels and is_nil(is_bot) do
     if has_mentions?(content) do
       mentioned_users = get_mentions(content)
 
@@ -77,6 +103,23 @@ defmodule DopaTeam.Consumer do
         Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
       end
     end
+  end
+
+  defp handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, msg_content) do
+    # logic: does msg_content have at least a space
+    # and is the user "No Intro",
+    # if so, we remove "No Intro", and add "Intro"
+    server_roles = get_server_roles(guild_id)
+    {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
+    is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
+    msg_has_space = String.contains?(msg_content, " ")
+
+    Api.create_message(
+      channel_id,
+      content:
+        "i see an intro message, author=<@#{author_id}>, does message have space?:#{inspect(msg_has_space)}, does user have no intro role?: #{inspect(is_user_no_intro)}",
+      message_reference: %{message_id: msg_id}
+    )
   end
 
   @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [
