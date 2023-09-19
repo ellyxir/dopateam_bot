@@ -35,6 +35,10 @@ defmodule DopaTeam.Consumer do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
 
+  def handle_event({:READY, %Nostrum.Struct.Event.Ready{} = ready_event, _ws_state}) do
+    handle_ready_event(ready_event)
+  end
+  
   @doc """
   handles an incoming message in one of the channels we are listening to
   """
@@ -103,6 +107,13 @@ defmodule DopaTeam.Consumer do
         Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
       end
     end
+  end
+
+  defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
+    command_list = [ DopaTeam.WaterPing.register_command() ]
+    Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} -> 
+      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, command_list)
+    end)
   end
 
   defp handle_intro_message(
