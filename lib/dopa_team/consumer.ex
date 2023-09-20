@@ -38,10 +38,30 @@ defmodule DopaTeam.Consumer do
   def handle_event({:READY, %Nostrum.Struct.Event.Ready{} = ready_event, _ws_state}) do
     handle_ready_event(ready_event)
   end
-  
+
   @doc """
   handles an incoming message in one of the channels we are listening to
   """
+  # handles user using slash command
+  def handle_event(
+        {:INTERACTION_CREATE,
+         %Nostrum.Struct.Interaction{
+           data: %Nostrum.Struct.ApplicationCommandInteractionData{
+             name: "water"
+           }
+         } = interaction, _ws_state}
+      ) do
+    response = %{
+      # CHANNEL_MESSAGE_WITH_SOURCE
+      type: 4,
+      data: %{
+        #flags: 64, # ephemeral message
+        content: "got your water ping request!! but i havent finished coding it yet"
+      }
+    }
+    Nostrum.Api.create_interaction_response(interaction, response)
+  end
+
   def handle_event(
         {:MESSAGE_CREATE,
          %Nostrum.Struct.Message{
@@ -110,8 +130,9 @@ defmodule DopaTeam.Consumer do
   end
 
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
-    command_list = [ DopaTeam.WaterPing.register_command() ]
-    Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} -> 
+    command_list = [DopaTeam.WaterPing.register_command()]
+
+    Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
       Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, command_list)
     end)
   end

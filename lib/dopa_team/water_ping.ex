@@ -19,4 +19,11 @@ defmodule DopaTeam.WaterPing do
   returns the water slash command info
   """
   def register_command(), do: @water_command
+
+  @doc """
+  user requested water ping
+  """
+  @type handle_water() :: any() 
+  def handle_water() do
+  end
 end
