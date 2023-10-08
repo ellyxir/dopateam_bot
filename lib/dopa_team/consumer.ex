@@ -29,8 +29,10 @@ defmodule DopaTeam.Consumer do
   @intro_channels [@live_intro_channel, @bot_test_intro_channel]
 
   # roles we care about, this needs to match the role name exactly in the server
-  @adult_role_name "18+"
-  @minor_role_name "<18"
+  @adult_role_18_name "18+"
+  @adult_role_30_name "30+"
+  @minor_role_13_name "13-16"
+  @minor_role_16_name "16-18"
   @closed_dm_role_name "Closed DM"
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
@@ -201,15 +203,23 @@ defmodule DopaTeam.Consumer do
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
       when is_integer(guild_id) and is_list(author_roles) and is_integer(mentioned_user_id) do
     server_roles = get_server_roles(guild_id)
-    {:ok, adult_role_id} = get_role_id_by_name(server_roles, @adult_role_name)
-    {:ok, minor_role_id} = get_role_id_by_name(server_roles, @minor_role_name)
+    {:ok, adult_role_18_id} = get_role_id_by_name(server_roles, @adult_role_18_name)
+    {:ok, adult_role_30_id} = get_role_id_by_name(server_roles, @adult_role_30_name)
+    {:ok, minor_role_13_id} = get_role_id_by_name(server_roles, @minor_role_13_name)
+    {:ok, minor_role_16_id} = get_role_id_by_name(server_roles, @minor_role_16_name)
     {:ok, closed_dm_role_id} = get_role_id_by_name(server_roles, @closed_dm_role_name)
 
-    is_author_adult = Enum.member?(author_roles, adult_role_id)
+    is_author_adult =
+      Enum.member?(author_roles, adult_role_18_id) ||
+        Enum.member?(author_roles, adult_role_30_id)
+
     # is_author_minor = Enum.member?(author_roles, minor_role_id)
 
     # is_mentioned_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
-    is_mentioned_minor = user_has_role?(guild_id, mentioned_user_id, minor_role_id)
+    is_mentioned_minor =
+      user_has_role?(guild_id, mentioned_user_id, minor_role_13_id) ||
+        user_has_role?(guild_id, mentioned_user_id, minor_role_16_id)
+
     is_mentioned_closed_dm = user_has_role?(guild_id, mentioned_user_id, closed_dm_role_id)
     is_mentioned_bot = is_user_bot?(mentioned_user_id)
 
