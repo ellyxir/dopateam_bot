@@ -7,21 +7,21 @@ defmodule DopaTeam.Consumer do
   @bot_message_delete_time_ms 30000
 
   # the discord server ids
-  @live_guild_id 821_855_117_539_541_003
+  @live_guild_id 1_160_011_667_204_231_300
   @bot_test_guild_id 964_397_371_213_615_124
 
   # the channel is where we want audit logging to go to
   @logging_channel %{
-    @live_guild_id => 1_137_832_902_370_017_301,
+    @live_guild_id => 1_160_606_680_741_056_652,
     @bot_test_guild_id => 964_397_371_666_604_076
   }
 
   # channels for dm asking
-  @live_dm_asking_channel 928_601_274_352_541_718
+  @live_dm_asking_channel 1_160_011_669_003_587_584
   @bot_test_dm_asking_channel 964_397_371_666_604_079
 
   # channels for intro
-  @live_intro_channel 821_862_742_315_106_315
+  @live_intro_channel 1_160_011_668_500_250_734
   @bot_test_intro_channel 964_397_371_314_274_342
 
   # channels we are listening to
