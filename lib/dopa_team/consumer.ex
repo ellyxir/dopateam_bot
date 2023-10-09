@@ -31,7 +31,7 @@ defmodule DopaTeam.Consumer do
   # roles we care about, this needs to match the role name exactly in the server
   @adult_role_18_name "18+"
   @adult_role_30_name "30+"
-  @minor_role_13_name "13-16"
+  @minor_role_13_name "13-15"
   @minor_role_16_name "16-18"
   @closed_dm_role_name "Closed DM"
   @no_intro_role_name "No Intro"
