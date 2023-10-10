@@ -32,7 +32,7 @@ defmodule DopaTeam.Consumer do
   @adult_role_18_name "18+"
   @adult_role_30_name "30+"
   @minor_role_13_name "13-15"
-  @minor_role_16_name "16-18"
+  @minor_role_16_name "16-17"
   @closed_dm_role_name "Closed DM"
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
