@@ -37,6 +37,19 @@ defmodule DopaTeam.Consumer do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
 
+  # command to list all bots in server
+  @botlist_command "botlist"
+  @command_list [
+    %{
+      name: @botlist_command,
+      description: "List all bots in the server"
+    }
+  ]
+
+  def handle_event({:READY, %Nostrum.Struct.Event.Ready{} = ready_event, _ws_state}) do
+    handle_ready_event(ready_event)
+  end
+
   @doc """
   handles an incoming message in one of the channels we are listening to
   """
@@ -105,6 +118,64 @@ defmodule DopaTeam.Consumer do
         Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
       end
     end
+  end
+
+  def handle_event(
+        {:INTERACTION_CREATE,
+         %Nostrum.Struct.Interaction{
+           guild_id: guild_id,
+           data: %{name: @botlist_command, options: _options}
+         } =
+           interaction, _ws_state}
+      ) do
+    all_members = get_all_members(guild_id)
+
+    all_user_ids =
+      Enum.map(all_members, fn %Nostrum.Struct.Guild.Member{user_id: user_id} ->
+        user_id
+      end)
+
+    all_users =
+      Enum.reduce(all_user_ids, [], fn user_id, acc ->
+        {:ok, user} = Nostrum.Api.get_user(user_id)
+        [user | acc]
+      end)
+
+    all_bots =
+      Enum.filter(all_users, fn %Nostrum.Struct.User{bot: is_bot} ->
+        is_bot
+      end)
+
+    # Logger.error("all bots=#{inspect all_bots}")
+    embed_msg =
+      Enum.reduce(all_bots, "", fn %Nostrum.Struct.User{} = user, acc ->
+        "ID:#{inspect(user.id)}, username:#{user.username}, is bot:#{inspect(user.bot)}\n" <> acc
+      end)
+
+    embed =
+      %Nostrum.Struct.Embed{}
+      |> Nostrum.Struct.Embed.put_title("Bot List")
+      |> Nostrum.Struct.Embed.put_description(embed_msg)
+
+    response = %{
+      type: 4,
+      data: %{
+        embeds: [embed]
+      }
+    }
+
+    Nostrum.Api.create_interaction_response(interaction, response)
+  end
+
+  defp get_all_members(guild_id) when is_number(guild_id) do
+    {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
+    member_list
+  end
+
+  defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
+    Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
+      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
+    end)
   end
 
   defp handle_intro_message(
