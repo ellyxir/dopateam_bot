@@ -128,43 +128,46 @@ defmodule DopaTeam.Consumer do
          } =
            interaction, _ws_state}
       ) do
-    all_members = get_all_members(guild_id)
+    # defer message response
+    {:ok} = Nostrum.Api.create_interaction_response(interaction, %{type: 5})
 
-    all_user_ids =
-      Enum.map(all_members, fn %Nostrum.Struct.Guild.Member{user_id: user_id} ->
-        user_id
-      end)
+    # all_members = get_all_members(guild_id)
+    # all_user_ids =
+    #   Enum.map(all_members, fn %Nostrum.Struct.Guild.Member{user_id: user_id} ->
+    #     user_id
+    #   end)
 
-    all_users =
-      Enum.reduce(all_user_ids, [], fn user_id, acc ->
-        {:ok, user} = Nostrum.Api.get_user(user_id)
-        [user | acc]
-      end)
+    # all_users =
+    #   Enum.reduce(all_user_ids, [], fn user_id, acc ->
+    #     {:ok, user} = Nostrum.Api.get_user(user_id)
+    #     Logger.warn("getting user #{inspect user_id}")
+    #     [user | acc]
+    #   end)
 
-    all_bots =
-      Enum.filter(all_users, fn %Nostrum.Struct.User{bot: is_bot} ->
-        is_bot
-      end)
+    # all_bots =
+    #   Enum.filter(all_users, fn %Nostrum.Struct.User{bot: is_bot} ->
+    #     is_bot
+    #   end)
 
     # Logger.error("all bots=#{inspect all_bots}")
-    embed_msg =
-      Enum.reduce(all_bots, "", fn %Nostrum.Struct.User{} = user, acc ->
-        "ID:#{inspect(user.id)}, username:#{user.username}, is bot:#{inspect(user.bot)}\n" <> acc
-      end)
+    # embed_msg =
+    #   Enum.reduce(all_bots, "", fn %Nostrum.Struct.User{} = user, acc ->
+    #     "ID:#{inspect(user.id)}, username:#{user.username}, is bot:#{inspect(user.bot)}\n" <> acc
+    #   end)
 
-    embed =
-      %Nostrum.Struct.Embed{}
-      |> Nostrum.Struct.Embed.put_title("Bot List")
-      |> Nostrum.Struct.Embed.put_description(embed_msg)
+    # embed =
+    #   %Nostrum.Struct.Embed{}
+    #   |> Nostrum.Struct.Embed.put_title("Bot List")
+    #   |> Nostrum.Struct.Embed.put_description(embed_msg)
 
-    response = %{
-      type: 4,
-      data: %{
-        embeds: [embed]
-      }
-    }
+    # response = %{
+    #   type: 4,
+    #   data: %{
+    #     embeds: [embed]
+    #   }
+    # }
 
-    Nostrum.Api.create_interaction_response(interaction, response)
+    # Nostrum.Api.edit_interaction_response(interaction, response)
   end
 
   defp get_all_members(guild_id) when is_number(guild_id) do
@@ -174,7 +177,9 @@ defmodule DopaTeam.Consumer do
 
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
     Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
-      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
+      Logger.warn("Ready event: registering commands for guild id: #{inspect guild_id}")
+      #Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
+      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, [])
     end)
   end
 
@@ -196,6 +201,7 @@ defmodule DopaTeam.Consumer do
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
+    Logger.warn("intro message from userid: #{author_id}, is user no intro?:#{inspect is_user_no_intro}, msg space?:#{inspect msg_has_space}")
     if is_user_no_intro && msg_has_space do
       {:ok, _updated_member} =
         modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id])
