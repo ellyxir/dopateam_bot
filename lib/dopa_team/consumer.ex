@@ -8,12 +8,17 @@ defmodule DopaTeam.Consumer do
 
   # the discord server ids
   @live_guild_id 1_160_011_667_204_231_300
-  @bot_test_guild_id 964_397_371_213_615_124
+  @bot_test_guild_id 1_163_155_786_562_814_092
 
-  # the channel is where we want audit logging to go to
+  # the channel is where we want dm audit logging to go to
   @logging_channel %{
     @live_guild_id => 1_160_606_680_741_056_652,
     @bot_test_guild_id => 964_397_371_666_604_076
+  }
+
+  @vc_status_logging_channel %{
+    @live_guild_id => 1_160_011_672_170_287_196,
+    @bot_test_guild_id => 1_163_155_790_014_717_975
   }
 
   # channels for dm asking
@@ -170,6 +175,41 @@ defmodule DopaTeam.Consumer do
     # Nostrum.Api.edit_interaction_response(interaction, response)
   end
 
+  # def handle_event(
+  #       {:VOICE_CHANNEL_STATUS_UPDATE,
+  #       voice_status_update, _ws_state}
+  #     ) do
+  #   Logger.warning("Got Voice channel status update: #{inspect voice_status_update}")
+  # end
+
+  # def handle_event(
+  #   {:CHANNEL_TOPIC_UPDATE,
+  #   channel_topic_update, _ws_state}
+  # ) do
+  #   Logger.warning("Got channel topic update: #{inspect channel_topic_update}")
+  # end
+
+  def handle_event(
+        {:GUILD_AUDIT_LOG_ENTRY_CREATE,
+         %Nostrum.Struct.Guild.AuditLogEntry{
+           action_type: 192,
+           options: %{status: status_text},
+           target_id: channel_id,
+           user_id: user_id
+         }, _ws_state}
+      ) do
+    {:ok, %Nostrum.Struct.Channel{guild_id: guild_id}} = Nostrum.Api.get_channel(channel_id)
+
+    # Logger.warning(
+    #   "got log event for channel topic update event, status=:#{inspect(status_text)}, channel_id=#{inspect(channel_id)}, user_id=#{inspect(user_id)}, guild_id=#{inspect(guild_id)}"
+    # )
+
+    log_vc_event(
+      guild_id,
+      "<@#{user_id}> (user id #{user_id}) changed status for channel <##{channel_id}>, new status=#{inspect(status_text)}"
+    )
+  end
+
   defp get_all_members(guild_id) when is_number(guild_id) do
     {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
     member_list
@@ -177,8 +217,8 @@ defmodule DopaTeam.Consumer do
 
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
     Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
-      Logger.warn("Ready event: registering commands for guild id: #{inspect guild_id}")
-      #Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
+      Logger.warn("Ready event: registering commands for guild id: #{inspect(guild_id)}")
+      # Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
       Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, [])
     end)
   end
@@ -201,7 +241,10 @@ defmodule DopaTeam.Consumer do
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
-    Logger.warn("intro message from userid: #{author_id}, is user no intro?:#{inspect is_user_no_intro}, msg space?:#{inspect msg_has_space}")
+    Logger.warn(
+      "intro message from userid: #{author_id}, is user no intro?:#{inspect(is_user_no_intro)}, msg space?:#{inspect(msg_has_space)}"
+    )
+
     if is_user_no_intro && msg_has_space do
       {:ok, _updated_member} =
         modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id])
@@ -261,7 +304,21 @@ defmodule DopaTeam.Consumer do
         )
 
       :error ->
-        Logger.warning("no channel for logging configured for guild id #{guild_id}")
+        Logger.warning("no channel for dm-asking logging configured for guild id #{guild_id}")
+    end
+  end
+
+  @spec log_vc_event(Nostrum.Struct.Guild.id(), String.t()) :: any()
+  def log_vc_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
+    case Map.fetch(@vc_status_logging_channel, guild_id) do
+      {:ok, channel_id} ->
+        Api.create_message(
+          channel_id,
+          log_message
+        )
+
+      :error ->
+        Logger.warning("no channel for VC logging configured for guild id #{guild_id}")
     end
   end
 
