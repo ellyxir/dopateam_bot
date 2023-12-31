@@ -247,24 +247,25 @@ defmodule DopaTeam.Consumer do
     handle_water_command_helper(interaction, now - last_ping_sec)
   end
 
-  @spec handle_water_command_helper(Nostrum.Struct.Interaction.t(), integer()) :: term()
-  defp handle_water_command_helper(
-         %Nostrum.Struct.Interaction{channel_id: channel_id} = interaction,
-         _elapsed_time_sec
-       )
-       when channel_id != @water_channel_id do
-    msg = %{
-      # ChannelMessageWithSource
-      type: 4,
-      data: %{
-        content: "This command can only be used in <##{@water_channel_id}>",
-        # ephemeral
-        flags: 64
-      }
-    }
+  # we arent checking for water channel id, instead it is managed via the bot command integrations at the server level
+  # @spec handle_water_command_helper(Nostrum.Struct.Interaction.t(), integer()) :: term()
+  # defp handle_water_command_helper(
+  #        %Nostrum.Struct.Interaction{channel_id: channel_id} = interaction,
+  #        _elapsed_time_sec
+  #      )
+  #      when channel_id != @water_channel_id do
+  #   msg = %{
+  #     # ChannelMessageWithSource
+  #     type: 4,
+  #     data: %{
+  #       content: "This command can only be used in <##{@water_channel_id}>",
+  #       # ephemeral
+  #       flags: 64
+  #     }
+  #   }
 
-    _ = Nostrum.Api.create_interaction_response(interaction, msg)
-  end
+  #   _ = Nostrum.Api.create_interaction_response(interaction, msg)
+  # end
 
   defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
        when is_integer(elapsed_time_sec) and elapsed_time_sec >= @water_elapsed_time_sec do
