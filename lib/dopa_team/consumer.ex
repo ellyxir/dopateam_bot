@@ -47,11 +47,13 @@ defmodule DopaTeam.Consumer do
 
   # water stuff
   @water_command "water"
-  # @water_elapsed_time_sec 3 * 60 * 60
-  @water_elapsed_time_sec 1
-  @water_channel_id 1_176_811_719_398_543_383
-  @water_role_id 1_176_811_717_213_306_887
-  @water_emoji "<:water_bottle:1191095859350360074>"
+  @water_elapsed_time_sec 3 * 60 * 60
+  @water_channel_id 1_160_011_669_515_288_661
+  # dev @water_channel_id 1_176_811_719_398_543_383
+  @water_role_id 1_160_011_667_606_863_892
+  # dev @water_role_id 1_176_811_717_213_306_887
+  @water_emoji "<:water_bottle:1160222447069560933>"
+  # dev @water_emoji "<:water_bottle:1191095859350360074>"
 
   @command_list [
     # %{
@@ -286,23 +288,24 @@ defmodule DopaTeam.Consumer do
         # ]
       }
     }
+
     _ = Nostrum.Api.create_interaction_response(interaction, msg)
 
     msg = %{
-        content: "<@&#{@water_role_id}>",
-        # allowed_mentions: %{
-        #   parse: "roles"
-        # },
-        embeds: [
-          %Nostrum.Struct.Embed{
-            title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
-            description:
-              "<@#{user.id}> would like to remind you to drink some water!"
-          }
-        ]
-      }
+      content: "<@&#{@water_role_id}>",
+      # allowed_mentions: %{
+      #   parse: "roles"
+      # },
+      embeds: [
+        %Nostrum.Struct.Embed{
+          title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
+          description: "<@#{user.id}> would like to remind you to drink some water!"
+        }
+      ]
+    }
+
     _ = Nostrum.Api.create_message(interaction.channel_id, msg)
-    #"<@&#{@water_role_id}> Time to drink some water!")
+    # "<@&#{@water_role_id}> Time to drink some water!")
 
     # update the timer
     DopaTeam.WaterPing.set_timer()

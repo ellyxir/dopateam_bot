@@ -2,7 +2,7 @@ defmodule DopaTeam.WaterPing do
   use GenServer
   require Logger
 
-  defstruct last_ping_sec: 1
+  defstruct last_ping_sec: 0
 
   @typedoc "last_ping_sec is unix time seconds since last water ping or when genserver started, whichever is later"
   @type t :: %__MODULE__{
@@ -15,8 +15,8 @@ defmodule DopaTeam.WaterPing do
 
   @impl GenServer
   def init(%__MODULE__{} = state) do
-    ut = System.os_time(:second)
-    {:ok, %{state | last_ping_sec: ut}}
+    # set initial timer to 0 so users can ping immediately
+    {:ok, %{state | last_ping_sec: 0}}
   end
 
   @doc """
