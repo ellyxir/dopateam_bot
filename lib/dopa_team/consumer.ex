@@ -8,7 +8,7 @@ defmodule DopaTeam.Consumer do
 
   # the discord server ids
   @live_guild_id 1_160_011_667_204_231_300
-  @bot_test_guild_id 1_163_155_786_562_814_092
+  @bot_test_guild_id 1_176_811_717_213_306_880
 
   # the channel is where we want dm audit logging to go to
   @logging_channel %{
@@ -44,10 +44,23 @@ defmodule DopaTeam.Consumer do
 
   # command to list all bots in server
   @botlist_command "botlist"
+
+  # water stuff
+  @water_command "water"
+  # @water_elapsed_time_sec 3 * 60 * 60
+  @water_elapsed_time_sec 120
+  @water_channel_id 1_176_811_719_398_543_383
+  @water_role_id 1_176_811_717_213_306_887
+  @water_emoji "<:water_bottle:1191095859350360074>"
+
   @command_list [
+    # %{
+    #   name: @botlist_command,
+    #   description: "List all bots in the server"
+    # },
     %{
-      name: @botlist_command,
-      description: "List all bots in the server"
+      name: @water_command,
+      description: "Send a water reminder ping"
     }
   ]
 
@@ -128,7 +141,18 @@ defmodule DopaTeam.Consumer do
   def handle_event(
         {:INTERACTION_CREATE,
          %Nostrum.Struct.Interaction{
-           guild_id: guild_id,
+           guild_id: _guild_id,
+           data: %{name: @water_command, options: _options}
+         } =
+           interaction, _ws_state}
+      ) do
+    handle_water_command(interaction)
+  end
+
+  def handle_event(
+        {:INTERACTION_CREATE,
+         %Nostrum.Struct.Interaction{
+           guild_id: _guild_id,
            data: %{name: @botlist_command, options: _options}
          } =
            interaction, _ws_state}
@@ -210,6 +234,78 @@ defmodule DopaTeam.Consumer do
     )
   end
 
+  @doc """
+    checks elapsed time since last water ping, if ok then sends message
+  """
+  @spec handle_water_command(Nostrum.Struct.Interaction.t()) :: term()
+  def handle_water_command(%Nostrum.Struct.Interaction{} = interaction) do
+    last_ping_sec = DopaTeam.WaterPing.get_timer()
+    now = DopaTeam.WaterPing.now()
+
+    handle_water_command_helper(interaction, now - last_ping_sec)
+  end
+
+  @spec handle_water_command_helper(Nostrum.Struct.Interaction.t(), integer()) :: term()
+  defp handle_water_command_helper(
+         %Nostrum.Struct.Interaction{channel_id: channel_id} = interaction,
+         _elapsed_time_sec
+       )
+       when channel_id != @water_channel_id do
+    msg = %{
+      # ChannelMessageWithSource
+      type: 4,
+      data: %{
+        content: "This command can only be used in <##{@water_channel_id}>",
+        # ephemeral
+        flags: 64
+      }
+    }
+
+    _ = Nostrum.Api.create_interaction_response(interaction, msg)
+  end
+
+  defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
+       when is_integer(elapsed_time_sec) and elapsed_time_sec >= @water_elapsed_time_sec do
+    user = %Nostrum.Struct.User{} = interaction.user
+
+    msg = %{
+      # ChannelMessageWithSource
+      type: 4,
+      data: %{
+        # content: "elapsed=#{elapsed_time_sec}, user=<@#{user.id}>, elapsed time is sufficient",
+        embeds: [
+          %Nostrum.Struct.Embed{
+            title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
+            description:
+              "Hey <@&#{@water_role_id}>, <@#{user.id}> would like to remind you to drink some water!"
+          }
+        ]
+      }
+    }
+
+    _ = Nostrum.Api.create_interaction_response(interaction, msg)
+
+    # update the timer
+    DopaTeam.WaterPing.set_timer()
+  end
+
+  defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
+       when is_integer(elapsed_time_sec) and elapsed_time_sec < @water_elapsed_time_sec do
+    wait_min = div(@water_elapsed_time_sec - elapsed_time_sec, 60) + 1
+
+    msg = %{
+      # ChannelMessageWithSource
+      type: 4,
+      data: %{
+        content: "Please wait #{wait_min} minutes before next water ping.",
+        # ephemeral
+        flags: 64
+      }
+    }
+
+    _ = Nostrum.Api.create_interaction_response(interaction, msg)
+  end
+
   defp get_all_members(guild_id) when is_number(guild_id) do
     {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
     member_list
@@ -217,9 +313,8 @@ defmodule DopaTeam.Consumer do
 
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
     Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
-      Logger.warn("Ready event: registering commands for guild id: #{inspect(guild_id)}")
-      # Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
-      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, [])
+      Logger.warning("Ready event: registering commands for guild id: #{inspect(guild_id)}")
+      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
     end)
   end
 
@@ -241,7 +336,7 @@ defmodule DopaTeam.Consumer do
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
-    Logger.warn(
+    Logger.warning(
       "intro message from userid: #{author_id}, is user no intro?:#{inspect(is_user_no_intro)}, msg space?:#{inspect(msg_has_space)}"
     )
 

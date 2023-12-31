@@ -9,7 +9,8 @@ defmodule DopaTeam.Application do
   def start(_type, _args) do
     children = [
       # Starts a worker by calling: DopaTeam.Worker.start_link(arg)
-      DopaTeam.Consumer
+      DopaTeam.Consumer,
+      DopaTeam.WaterPing
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
