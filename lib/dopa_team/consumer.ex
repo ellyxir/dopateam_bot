@@ -247,46 +247,19 @@ defmodule DopaTeam.Consumer do
     handle_water_command_helper(interaction, now - last_ping_sec)
   end
 
-  # we arent checking for water channel id, instead it is managed via the bot command integrations at the server level
-  # @spec handle_water_command_helper(Nostrum.Struct.Interaction.t(), integer()) :: term()
-  # defp handle_water_command_helper(
-  #        %Nostrum.Struct.Interaction{channel_id: channel_id} = interaction,
-  #        _elapsed_time_sec
-  #      )
-  #      when channel_id != @water_channel_id do
-  #   msg = %{
-  #     # ChannelMessageWithSource
-  #     type: 4,
-  #     data: %{
-  #       content: "This command can only be used in <##{@water_channel_id}>",
-  #       # ephemeral
-  #       flags: 64
-  #     }
-  #   }
-
-  #   _ = Nostrum.Api.create_interaction_response(interaction, msg)
-  # end
-
   defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
        when is_integer(elapsed_time_sec) and elapsed_time_sec >= @water_elapsed_time_sec do
+
+    # update the timer now to minimize racecondition time
+    DopaTeam.WaterPing.set_timer()
+
     user = %Nostrum.Struct.User{} = interaction.user
 
     msg = %{
-      # DEFERRED_UPDATE_MESSAGE
       type: 4,
       data: %{
         content: "Thank you for the water ping!",
         flags: 64
-        # allowed_mentions: %{
-        #   parse: "roles"
-        # },
-        # embeds: [
-        #   %Nostrum.Struct.Embed{
-        #     title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
-        #     description:
-        #       "Hey <@&#{@water_role_id}>, <@#{user.id}> would like to remind you to drink some water!"
-        #   }
-        # ]
       }
     }
 
@@ -294,9 +267,6 @@ defmodule DopaTeam.Consumer do
 
     msg = %{
       content: "<@&#{@water_role_id}>",
-      # allowed_mentions: %{
-      #   parse: "roles"
-      # },
       embeds: [
         %Nostrum.Struct.Embed{
           title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
@@ -306,10 +276,6 @@ defmodule DopaTeam.Consumer do
     }
 
     _ = Nostrum.Api.create_message(interaction.channel_id, msg)
-    # "<@&#{@water_role_id}> Time to drink some water!")
-
-    # update the timer
-    DopaTeam.WaterPing.set_timer()
   end
 
   defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
