@@ -48,8 +48,6 @@ defmodule DopaTeam.Consumer do
   # water stuff
   @water_command "water"
   @water_elapsed_time_sec 3 * 60 * 60
-  @water_channel_id 1_160_011_669_515_288_661
-  # dev @water_channel_id 1_176_811_719_398_543_383
   @water_role_id 1_160_011_667_606_863_892
   # dev @water_role_id 1_176_811_717_213_306_887
   @water_emoji "<:water_bottle:1160222447069560933>"
@@ -249,8 +247,8 @@ defmodule DopaTeam.Consumer do
 
   defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
        when is_integer(elapsed_time_sec) and elapsed_time_sec >= @water_elapsed_time_sec do
-
-    # update the timer now to minimize racecondition time
+    # success, we can send ping
+    # update the timer now to minimize race condition time
     DopaTeam.WaterPing.set_timer()
 
     user = %Nostrum.Struct.User{} = interaction.user
@@ -265,12 +263,15 @@ defmodule DopaTeam.Consumer do
 
     _ = Nostrum.Api.create_interaction_response(interaction, msg)
 
+    # get the users name since often the discord cache doesn't work
+    username = get_name(interaction.guild_id, interaction.user)
+    
     msg = %{
       content: "<@&#{@water_role_id}>",
       embeds: [
         %Nostrum.Struct.Embed{
           title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
-          description: "<@#{user.id}> would like to remind you to drink some water!"
+          description: "<@#{user.id}> (#{username}) would like to remind you to drink some water!"
         }
       ]
     }
@@ -295,6 +296,24 @@ defmodule DopaTeam.Consumer do
     _ = Nostrum.Api.create_interaction_response(interaction, msg)
   end
 
+  @doc """
+    returns the nickname of the user if avail or username or <@userid> mention format if all fails
+  """
+  @spec get_name(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.t()) :: String.t()
+  def get_name(guild_id, %Nostrum.Struct.User{id: user_id} = user) when is_integer(guild_id) do
+    with {:ok, %Nostrum.Struct.Guild.Member{} = member} <- Nostrum.Api.get_guild_member(guild_id, user_id),
+      nickname when is_binary(nickname) <- member.nick do 
+      nickname
+    else
+      _ ->
+          if is_binary(user.username) do
+            user.username
+          else
+            Nostrum.Struct.User.mention(user)
+          end
+    end
+  end
+  
   defp get_all_members(guild_id) when is_number(guild_id) do
     {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
     member_list
