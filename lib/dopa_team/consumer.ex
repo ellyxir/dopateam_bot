@@ -33,6 +33,10 @@ defmodule DopaTeam.Consumer do
   @dm_channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
   @intro_channels [@live_intro_channel, @bot_test_intro_channel]
 
+  # channel we want to delete messages from after a while
+  @disappearing_messages_channel_id 1_166_451_556_607_078_430
+  @disappearing_messages_timeout_sec 86400
+
   # roles we care about, this needs to match the role name exactly in the server
   @adult_role_18_name "18+"
   @adult_role_30_name "30+"
@@ -84,6 +88,23 @@ defmodule DopaTeam.Consumer do
       )
       when channel_id in @intro_channels and is_nil(is_bot) do
     handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content)
+  end
+
+  def handle_event(
+        {:MESSAGE_CREATE,
+         %Nostrum.Struct.Message{
+           id: msg_id,
+           author: %{bot: nil},
+           guild_id: guild_id,
+           channel_id: @disappearing_messages_channel_id
+         } = _original_message, _ws_state}
+      ) do
+    handle_disappearing_message(
+      guild_id,
+      @disappearing_messages_channel_id,
+      msg_id,
+      @disappearing_messages_timeout_sec
+    )
   end
 
   def handle_event(
@@ -235,6 +256,25 @@ defmodule DopaTeam.Consumer do
   end
 
   @doc """
+  handler for messages we should delete after a timeout  
+  """
+  @spec handle_disappearing_message(
+          Nostrum.Struct.Guild.id(),
+          Nostrum.Struct.Channel.id(),
+          Nostrum.Struct.Message.id(),
+          integer()
+        ) :: term()
+  def handle_disappearing_message(guild_id, channel_id, msg_id, timeout_sec)
+      when is_integer(guild_id) and is_integer(channel_id) and is_integer(msg_id) and
+             is_integer(timeout_sec) do
+    _ =
+      spawn(fn ->
+        :ok = Process.sleep(timeout_sec * 1000)
+        {:ok} = Nostrum.Api.delete_message(channel_id, msg_id)
+      end)
+  end
+
+  @doc """
     checks elapsed time since last water ping, if ok then sends message
   """
   @spec handle_water_command(Nostrum.Struct.Interaction.t()) :: term()
@@ -265,7 +305,7 @@ defmodule DopaTeam.Consumer do
 
     # get the users name since often the discord cache doesn't work
     username = get_name(interaction.guild_id, interaction.user)
-    
+
     msg = %{
       content: "<@&#{@water_role_id}>",
       embeds: [
@@ -301,19 +341,20 @@ defmodule DopaTeam.Consumer do
   """
   @spec get_name(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.t()) :: String.t()
   def get_name(guild_id, %Nostrum.Struct.User{id: user_id} = user) when is_integer(guild_id) do
-    with {:ok, %Nostrum.Struct.Guild.Member{} = member} <- Nostrum.Api.get_guild_member(guild_id, user_id),
-      nickname when is_binary(nickname) <- member.nick do 
+    with {:ok, %Nostrum.Struct.Guild.Member{} = member} <-
+           Nostrum.Api.get_guild_member(guild_id, user_id),
+         nickname when is_binary(nickname) <- member.nick do
       nickname
     else
       _ ->
-          if is_binary(user.username) do
-            user.username
-          else
-            Nostrum.Struct.User.mention(user)
-          end
+        if is_binary(user.username) do
+          user.username
+        else
+          Nostrum.Struct.User.mention(user)
+        end
     end
   end
-  
+
   defp get_all_members(guild_id) when is_number(guild_id) do
     {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
     member_list
