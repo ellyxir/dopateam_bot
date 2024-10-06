@@ -64,7 +64,16 @@ defmodule DopaTeam.Consumer do
     # },
     %{
       name: @water_command,
-      description: "Send a water reminder ping"
+      description: "Send a water reminder ping",
+      options: [
+        %{
+          # STRING, see "Application Command Option Type" in Discord API
+          type: 3,
+          name: "water_message",
+          description: "Message to customize water ping",
+          required: false
+        }
+      ]
     }
   ]
 
@@ -267,11 +276,13 @@ defmodule DopaTeam.Consumer do
   def handle_disappearing_message(guild_id, channel_id, msg_id, timeout_sec)
       when is_integer(guild_id) and is_integer(channel_id) and is_integer(msg_id) and
              is_integer(timeout_sec) do
-    _ =
-      spawn(fn ->
-        :ok = Process.sleep(timeout_sec * 1000)
-        {:ok} = Nostrum.Api.delete_message(channel_id, msg_id)
-      end)
+    # TODO: fix this
+    #    _ =
+    #      spawn(fn ->
+    #        :ok = Process.sleep(timeout_sec * 1000)
+    #        {:ok} = Nostrum.Api.delete_message(channel_id, msg_id)
+    #      end)
+    :ok
   end
 
   @doc """
@@ -285,7 +296,14 @@ defmodule DopaTeam.Consumer do
     handle_water_command_helper(interaction, now - last_ping_sec)
   end
 
-  defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
+  defp handle_water_command_helper(
+         %Nostrum.Struct.Interaction{
+           data: %Nostrum.Struct.ApplicationCommandInteractionData{
+             options: options
+           }
+         } = interaction,
+         elapsed_time_sec
+       )
        when is_integer(elapsed_time_sec) and elapsed_time_sec >= @water_elapsed_time_sec do
     # success, we can send ping
     # update the timer now to minimize race condition time
@@ -293,6 +311,7 @@ defmodule DopaTeam.Consumer do
 
     user = %Nostrum.Struct.User{} = interaction.user
 
+    # send ephemeral message back to the posting user
     msg = %{
       type: 4,
       data: %{
@@ -303,15 +322,25 @@ defmodule DopaTeam.Consumer do
 
     _ = Nostrum.Api.create_interaction_response(interaction, msg)
 
+    # send message to everyone in water channel
     # get the users name since often the discord cache doesn't work
     username = get_name(interaction.guild_id, interaction.user)
+
+    default_message = "<@#{user.id}> (#{username}) would like to remind you to drink some water!"
+
+    custom_message =
+      case get_option(options, "water_message") do
+        s when is_binary(s) -> "#{default_message}\nCustom message: #{s}"
+        nil -> default_message
+        what -> "WHAT IS THIS??? #{inspect(what)}"
+      end
 
     msg = %{
       content: "<@&#{@water_role_id}>",
       embeds: [
         %Nostrum.Struct.Embed{
           title: "Water Reminder! #{@water_emoji}#{@water_emoji}",
-          description: "<@#{user.id}> (#{username}) would like to remind you to drink some water!"
+          description: custom_message
         }
       ]
     }
@@ -590,4 +619,27 @@ defmodule DopaTeam.Consumer do
       id
     end)
   end
+
+  @doc """
+    finds matching option from list of options using the option_name, pulls out option value from ApplicationCommandInteractionDataOption
+  """
+  @spec get_option(
+          [Nostrum.Struct.ApplicationCommandInteractionDataOption.t()],
+          String.t(),
+          any()
+        ) :: any()
+
+  def get_option(options, option_name, default \\ nil)
+
+  def get_option(options, option_name, default)
+      when is_list(options) and is_binary(option_name) do
+    option_values = for %{name: ^option_name, value: value} = _opt <- options, do: value
+
+    case option_values do
+      [value | _] -> value
+      _ -> default
+    end
+  end
+
+  def get_option(nil, _option_name, default), do: default
 end
