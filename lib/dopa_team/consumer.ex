@@ -45,6 +45,7 @@ defmodule DopaTeam.Consumer do
   @closed_dm_role_name "Closed DM"
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
+  @rules_role_name "Rules"
 
   # command to list all bots in server
   @botlist_command "botlist"
@@ -411,6 +412,7 @@ defmodule DopaTeam.Consumer do
     server_roles = get_server_roles(guild_id)
     {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
     {:ok, intro_role_id} = get_role_id_by_name(server_roles, @intro_role_name)
+    {:ok, rules_role_id} = get_role_id_by_name(server_roles, @rules_role_name)
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
@@ -420,7 +422,7 @@ defmodule DopaTeam.Consumer do
 
     if is_user_no_intro && msg_has_space do
       {:ok, _updated_member} =
-        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id])
+        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id, rules_role_id])
 
       # Api.create_message(
       #   channel_id,
