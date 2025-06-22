@@ -516,19 +516,16 @@ defmodule DopaTeam.Consumer do
           [Nostrum.Struct.User.id()] | Nostrum.Struct.User.id()
         ) :: boolean()
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
-      when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) and
-          author_roles in [1160011667732709413, 1160011667732709412] 
-  do
-    # author is helper or mod
-    Logger.warning("is_dm_request_allowed?: true , is mod or helper")
-    true
-  end
-  def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
-    Logger.warning("is_dm_request_allowed?: is not mod or helper")
-    Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
-      acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
-    end)
+    if Enum.any?(author_roles, fn role_id -> role_id in [1160011667732709413, 1160011667732709412] end) do
+      Logger.warning("is_dm_request_allowed?: is mod or helper")
+      true
+    else
+      Logger.warning("is_dm_request_allowed?: is not mod or helper")
+      Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
+        acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
+      end)
+    end
   end
 
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
