@@ -46,6 +46,9 @@ defmodule DopaTeam.Consumer do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
   @rules_role_name "Rules"
+  @admin_role_name "Amins"
+  @mod_role_name "MOD"
+  @helper_role_name "Helpers"
 
   # command to list all bots in server
   @botlist_command "botlist"
@@ -397,6 +400,16 @@ defmodule DopaTeam.Consumer do
     end)
   end
 
+  @spec has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [non_neg_integer()]) :: Boolean
+  defp has_role?(guild_id, user_id, role_name_list) when is_integer(user_id) and is_list(role_name_list) do
+    server_roles = get_server_roles(guild_id)
+    role_id_list = Enum.map(role_name_list, fn role_name -> 
+      {:ok, role_id} = get_role_id_by_name(server_roles, role_name) 
+      role_id
+    end)
+    Enum.member?(user_id, role_id_list)
+  end
+  
   defp handle_intro_message(
          guild_id,
          channel_id,
@@ -502,6 +515,13 @@ defmodule DopaTeam.Consumer do
           [Nostrum.Struct.Guild.Role.id()],
           [Nostrum.Struct.User.id()] | Nostrum.Struct.User.id()
         ) :: boolean()
+  def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
+      when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) and
+          author_roles in [1160011667732709413, 1160011667732709412] 
+  do
+    # author is helper or mod
+    true
+  end
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
     Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
