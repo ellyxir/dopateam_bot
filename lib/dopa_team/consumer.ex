@@ -520,10 +520,12 @@ defmodule DopaTeam.Consumer do
           author_roles in [1160011667732709413, 1160011667732709412] 
   do
     # author is helper or mod
+    Logger.warning("is_dm_request_allowed?: true , is mod or helper")
     true
   end
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
+    Logger.warning("is_dm_request_allowed?: is not mod or helper")
     Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
       acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
     end)
