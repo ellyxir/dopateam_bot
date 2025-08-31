@@ -89,24 +89,6 @@ defmodule DopaTeam.Consumer do
   handles an incoming message in one of the channels we are listening to
   """
   def handle_event(
-        {:GUILD_MEMBER_ADD,
-        {
-          guild_id,
-          %Nostrum.Struct.Guild.Member{user_id: user_id, roles: current_roles},
-        },
-        _ws_state}
-      ) do
-    Logger.warning("guild member add: user_id=#{user_id}, roles=#{inspect current_roles}")
-    server_roles = get_server_roles(guild_id)
-    case get_role_id_by_name(server_roles, @no_intro_role_name) do
-      {:ok, no_intro_role_id} ->
-        modify_roles(guild_id, user_id, current_roles, [no_intro_role_id], [])
-      {:error, reason} ->
-        Logger.error("Could not assign No Intro role to user #{user_id} in guild #{guild_id}: #{reason}")
-    end
-  end
-
-  def handle_event(
         {:MESSAGE_CREATE,
          %Nostrum.Struct.Message{
            id: msg_id,
@@ -466,7 +448,6 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  
   @doc """
   adds roles and removes roles in one pass. will do adds first then removes
   """
