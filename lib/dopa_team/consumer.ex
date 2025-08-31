@@ -46,7 +46,7 @@ defmodule DopaTeam.Consumer do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
   @rules_role_name "Rules"
-  @admin_role_name "Amins"
+  @admin_role_name "Admins"
   @mod_role_name "MOD"
   @helper_role_name "Helpers"
 
@@ -444,6 +444,8 @@ defmodule DopaTeam.Consumer do
     {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
     {:ok, intro_role_id} = get_role_id_by_name(server_roles, @intro_role_name)
     {:ok, rules_role_id} = get_role_id_by_name(server_roles, @rules_role_name)
+    
+    Logger.warning("Role IDs resolved - no_intro: #{inspect(no_intro_role_id)}, intro: #{inspect(intro_role_id)}, rules: #{inspect(rules_role_id)}")
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
@@ -471,7 +473,7 @@ defmodule DopaTeam.Consumer do
   def modify_roles(guild_id, user_id, current_role_ids, role_ids_to_add, role_ids_to_remove)
       when is_integer(guild_id) and is_integer(user_id) and is_list(current_role_ids) and
              is_list(role_ids_to_add) and is_list(role_ids_to_remove) do
-    # Logger.warning("modify roles: current roles: #{inspect current_role_ids}, to_add: #{inspect role_ids_to_add}, to_remove: #{inspect role_ids_to_remove}")
+    Logger.warning("modify roles: user_id: #{inspect user_id}, current roles: #{inspect current_role_ids}, to_add: #{inspect role_ids_to_add}, to_remove: #{inspect role_ids_to_remove}")
     updated_roles =
       (current_role_ids ++ role_ids_to_add)
       |> Enum.uniq()
