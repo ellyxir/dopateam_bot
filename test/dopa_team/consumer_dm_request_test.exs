@@ -99,6 +99,13 @@ defmodule DopaTeam.ConsumerDmRequestTest do
     refute_received {:deleted, _message_id}
   end
 
+  test "a minor may ask to dm a minor" do
+    dm_request([@minor_role], "<@#{@minor_id}> can i dm you?")
+
+    refute_received {:created, _channel_id, _options}
+    refute_received {:deleted, _message_id}
+  end
+
   test "nobody may ask to dm a member with the Closed DM role" do
     dm_request([], "<@#{@closed_dm_id}> can we chat in dms?")
 
