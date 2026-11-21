@@ -13,6 +13,7 @@ defmodule DopaTeam.Consumer do
 
   alias Nostrum.Api
   alias Nostrum.Struct.Guild.Member
+  alias Nostrum.Struct.User
   require Logger
 
   @bot_message_delete_time_ms 30_000
@@ -207,7 +208,7 @@ defmodule DopaTeam.Consumer do
     # update the timer now to minimize race condition time
     DopaTeam.WaterPing.set_timer()
 
-    user = %Nostrum.Struct.User{} = interaction.user
+    user = %User{} = interaction.user
 
     # send ephemeral message back to the posting user
     msg = %{
@@ -266,8 +267,8 @@ defmodule DopaTeam.Consumer do
   @doc """
     returns the nickname of the user if avail or username or <@userid> mention format if all fails
   """
-  @spec get_name(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.t()) :: String.t()
-  def get_name(guild_id, %Nostrum.Struct.User{id: user_id} = user) when is_integer(guild_id) do
+  @spec get_name(Nostrum.Struct.Guild.id(), User.t()) :: String.t()
+  def get_name(guild_id, %User{id: user_id} = user) when is_integer(guild_id) do
     with {:ok, %Member{} = member} <-
            Nostrum.Api.get_guild_member(guild_id, user_id),
          nickname when is_binary(nickname) <- member.nick do
@@ -277,7 +278,7 @@ defmodule DopaTeam.Consumer do
         if is_binary(user.username) do
           user.username
         else
-          Nostrum.Struct.User.mention(user)
+          User.mention(user)
         end
     end
   end
@@ -350,8 +351,8 @@ defmodule DopaTeam.Consumer do
     Nostrum.Api.modify_guild_member(guild_id, user_id, roles: updated_roles)
   end
 
-  @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [
-          Nostrum.Struct.User.id()
+  @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), User.id(), [
+          User.id()
         ]) :: any()
   def log_illegal_dm_request(guild_id, author_id, mentioned_users) do
     mention_refs =
@@ -411,7 +412,7 @@ defmodule DopaTeam.Consumer do
   @spec dm_request_allowed?(
           Nostrum.Struct.Guild.id(),
           [Nostrum.Struct.Guild.Role.id()],
-          [Nostrum.Struct.User.id()] | Nostrum.Struct.User.id()
+          [User.id()] | User.id()
         ) :: boolean()
   def dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
@@ -458,9 +459,9 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  @spec user_bot?(Nostrum.Struct.User.id()) :: boolean
+  @spec user_bot?(User.id()) :: boolean
   def user_bot?(user_id) do
-    {:ok, %Nostrum.Struct.User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
+    {:ok, %User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
 
     case is_bot do
       nil -> false
@@ -470,7 +471,7 @@ defmodule DopaTeam.Consumer do
 
   @spec user_has_role?(
           Nostrum.Struct.Guild.id(),
-          Nostrum.Struct.User.id(),
+          User.id(),
           Nostrum.Struct.Guild.Role.id()
         ) :: boolean()
   def user_has_role?(guild_id, user_id, role_id) do
@@ -479,7 +480,7 @@ defmodule DopaTeam.Consumer do
   end
 
   # get their roles
-  @spec get_user_roles(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id()) :: [
+  @spec get_user_roles(Nostrum.Struct.Guild.id(), User.id()) :: [
           Nostrum.Struct.Guild.Role.id()
         ]
   def get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
