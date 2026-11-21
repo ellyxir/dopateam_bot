@@ -461,12 +461,19 @@ defmodule DopaTeam.Consumer do
     is_mentioned_closed_dm = user_has_role?(guild_id, mentioned_user_id, closed_dm_role_id)
     is_mentioned_bot = user_bot?(mentioned_user_id)
 
+    rules_allow_dm?(is_mentioned_closed_dm, is_mentioned_bot, is_author_adult, is_mentioned_minor)
+  end
+
+  # the dm request rules, given what we know about the author and the
+  # mentioned user
+  @spec rules_allow_dm?(boolean(), boolean(), boolean(), boolean()) :: boolean()
+  defp rules_allow_dm?(mentioned_closed_dm?, mentioned_bot?, author_adult?, mentioned_minor?) do
     cond do
-      is_mentioned_closed_dm -> false
+      mentioned_closed_dm? -> false
       # if we are mentioning a bot, who cares
-      is_mentioned_bot -> true
+      mentioned_bot? -> true
       # if author is adult and mentioned user is minor
-      is_author_adult && is_mentioned_minor -> false
+      author_adult? && mentioned_minor? -> false
       # otherwise its all good
       true -> true
     end
