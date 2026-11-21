@@ -1,6 +1,5 @@
 defmodule DopaTeam.WaterPing do
   use GenServer
-  require Logger
 
   defstruct last_ping_sec: 0
 
