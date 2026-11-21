@@ -4,9 +4,9 @@ defmodule DopaTeam.Consumer do
 
   It registers the `/water` slash command, moves members from "No Intro"
   to "Intro" when they post an introduction, removes dm requests that
-  mention Closed DM members or that adults post mentioning minors, and
-  logs voice channel status changes. Admins, MOD and Helpers are exempt
-  from the dm request check.
+  mention Closed DM members or that mention minors and come from anyone but
+  a minor, and logs voice channel status changes. Admins, MOD and Helpers
+  are exempt from the dm request check.
   """
 
   use Nostrum.Consumer
