@@ -4,7 +4,7 @@ defmodule DopaTeam.Consumer do
   alias Nostrum.Api
   require Logger
 
-  @bot_message_delete_time_ms 30000
+  @bot_message_delete_time_ms 30_000
 
   # the discord server ids
   @live_guild_id 1_160_011_667_204_231_300
