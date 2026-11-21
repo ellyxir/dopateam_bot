@@ -180,6 +180,43 @@ defmodule DopaTeam.IntroReportCommandTest do
     assert log =~ "couldn't edit the intro report reply"
   end
 
+  test "the group option picks which members the first page lists", context do
+    test_pid = self()
+    task_supervisor = Module.concat(__MODULE__, "Tasks#{context.line}")
+    store = Module.concat(__MODULE__, "Store#{context.line}")
+    start_supervised!({Task.Supervisor, name: task_supervisor})
+    start_supervised!({ReportStore, name: store})
+
+    stub(DiscordMock, :create_interaction_response, fn _interaction, _response -> {:ok} end)
+
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+      {:ok, [%Member{user_id: 10, roles: [1]}, %Member{user_id: 12, roles: []}]}
+    end)
+
+    stub(DiscordMock, :get_user, fn user_id -> {:ok, %User{id: user_id, bot: nil}} end)
+
+    expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 900}, response ->
+      send(test_pid, {:edited, response})
+      {:ok, %Message{id: 901}}
+    end)
+
+    option = %Nostrum.Struct.ApplicationCommandInteractionDataOption{
+      name: "group",
+      value: "without_intro_roles"
+    }
+
+    interaction = %{
+      interaction([@mod_role])
+      | data: %ApplicationCommandInteractionData{name: "intro-report", options: [option]}
+    }
+
+    IntroReportCommand.handle(interaction, task_supervisor: task_supervisor, store: store)
+
+    assert_receive {:edited, %{embeds: [embed]}}
+    assert embed.description =~ "<@12>"
+    assert embed.footer.text =~ "1 with neither Intro nor No Intro"
+  end
+
   describe "page buttons" do
     setup context do
       store = Module.concat(__MODULE__, "Store#{context.line}")

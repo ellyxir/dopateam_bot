@@ -47,7 +47,7 @@ defmodule DopaTeam.IntroReportCommand do
       store = Keyword.get(options, :store, ReportStore)
 
       Task.Supervisor.start_child(task_supervisor, fn ->
-        build_and_reply(interaction, store, {interaction.id, :no_intro, 1})
+        build_and_reply(interaction, store, {interaction.id, group(interaction), 1})
       end)
     else
       discord().create_interaction_response(interaction, %{
@@ -87,6 +87,17 @@ defmodule DopaTeam.IntroReportCommand do
         end)
     end
   end
+
+  # the group the command's option asks for, no intro by default
+  @spec group(Interaction.t()) :: IntroReportPage.group()
+  defp group(%Interaction{data: %{options: options}}) do
+    case options |> Consumer.get_option("group", "no_intro") |> IntroReportPage.parse_group() do
+      {:ok, group} -> group
+      :error -> :no_intro
+    end
+  end
+
+  defp group(%Interaction{}), do: :no_intro
 
   # whatever happens while building, the deferred reply gets edited, so staff
   # aren't left on "thinking"

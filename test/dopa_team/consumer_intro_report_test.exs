@@ -39,4 +39,16 @@ defmodule DopaTeam.ConsumerIntroReportTest do
 
     Consumer.handle_event({:READY, %Ready{guilds: [%UnavailableGuild{id: @guild_id}]}, nil})
   end
+
+  test "/intro-report offers a choice of which members to list" do
+    expect(DiscordMock, :bulk_overwrite_guild_application_commands, fn @guild_id, commands ->
+      command = Enum.find(commands, &(&1.name == "intro-report"))
+      assert [%{name: "group", required: false, choices: choices}] = command.options
+
+      assert Enum.map(choices, & &1.value) == ["no_intro", "without_intro_roles"]
+      {:ok, []}
+    end)
+
+    Consumer.handle_event({:READY, %Ready{guilds: [%UnavailableGuild{id: @guild_id}]}, nil})
+  end
 end

@@ -96,10 +96,11 @@ defmodule DopaTeam.IntroReportPage do
     }
   end
 
+  @doc "reads a group from its name, as a button id or command option gives it"
   @spec parse_group(String.t()) :: {:ok, group()} | :error
-  defp parse_group("no_intro"), do: {:ok, :no_intro}
-  defp parse_group("without_intro_roles"), do: {:ok, :without_intro_roles}
-  defp parse_group(_other), do: :error
+  def parse_group("no_intro"), do: {:ok, :no_intro}
+  def parse_group("without_intro_roles"), do: {:ok, :without_intro_roles}
+  def parse_group(_other), do: :error
 
   # discord rejects an embed with an empty description
   @spec description([String.t()]) :: String.t()

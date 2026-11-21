@@ -99,7 +99,20 @@ defmodule DopaTeam.Consumer do
     },
     %{
       name: @intro_report_command,
-      description: "Staff only: list the members who haven't done an intro"
+      description: "Staff only: list the members who haven't done an intro",
+      options: [
+        %{
+          # STRING, see "Application Command Option Type" in Discord API
+          type: 3,
+          name: "group",
+          description: "Which members to list",
+          required: false,
+          choices: [
+            %{name: "No Intro role", value: "no_intro"},
+            %{name: "Neither Intro nor No Intro", value: "without_intro_roles"}
+          ]
+        }
+      ]
     }
   ]
 
