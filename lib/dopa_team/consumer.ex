@@ -2,11 +2,11 @@ defmodule DopaTeam.Consumer do
   @moduledoc """
   Handles Discord gateway events for the bot.
 
-  It registers the `/water` slash command, moves members from "No Intro"
-  to "Intro" when they post an introduction, removes dm requests that
-  mention Closed DM members or that mention minors and come from anyone but
-  a minor, and logs voice channel status changes. Admins, MOD and Helpers
-  are exempt from the dm request check.
+  It registers the `/water` and `/intro-report` slash commands, moves
+  members from "No Intro" to "Intro" when they post an introduction, removes
+  dm requests that mention Closed DM members or that mention minors and come
+  from anyone but a minor, and logs voice channel status changes. Admins, MOD
+  and Helpers are exempt from the dm request check.
   """
 
   use Nostrum.Consumer
@@ -81,6 +81,8 @@ defmodule DopaTeam.Consumer do
   @water_emoji "<:water_bottle:1160222447069560933>"
   # dev @water_emoji "<:water_bottle:1191095859350360074>"
 
+  @intro_report_command "intro-report"
+
   @command_list [
     %{
       name: @water_command,
@@ -94,6 +96,10 @@ defmodule DopaTeam.Consumer do
           required: false
         }
       ]
+    },
+    %{
+      name: @intro_report_command,
+      description: "Staff only: list the members who haven't done an intro"
     }
   ]
 
@@ -146,6 +152,14 @@ defmodule DopaTeam.Consumer do
            interaction, _ws_state}
       ) do
     handle_water_command(interaction)
+  end
+
+  def handle_event(
+        {:INTERACTION_CREATE,
+         %Nostrum.Struct.Interaction{data: %{name: @intro_report_command}} = interaction,
+         _ws_state}
+      ) do
+    DopaTeam.IntroReportCommand.handle(interaction)
   end
 
   def handle_event(
