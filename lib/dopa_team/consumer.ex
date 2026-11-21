@@ -400,16 +400,21 @@ defmodule DopaTeam.Consumer do
     end)
   end
 
-  @spec has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [non_neg_integer()]) :: Boolean
-  defp has_role?(guild_id, user_id, role_name_list) when is_integer(user_id) and is_list(role_name_list) do
+  @spec has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [non_neg_integer()]) ::
+          Boolean
+  defp has_role?(guild_id, user_id, role_name_list)
+       when is_integer(user_id) and is_list(role_name_list) do
     server_roles = get_server_roles(guild_id)
-    role_id_list = Enum.map(role_name_list, fn role_name -> 
-      {:ok, role_id} = get_role_id_by_name(server_roles, role_name) 
-      role_id
-    end)
+
+    role_id_list =
+      Enum.map(role_name_list, fn role_name ->
+        {:ok, role_id} = get_role_id_by_name(server_roles, role_name)
+        role_id
+      end)
+
     Enum.member?(user_id, role_id_list)
   end
-  
+
   defp handle_intro_message(
          guild_id,
          channel_id,
@@ -426,8 +431,11 @@ defmodule DopaTeam.Consumer do
     {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
     {:ok, intro_role_id} = get_role_id_by_name(server_roles, @intro_role_name)
     {:ok, rules_role_id} = get_role_id_by_name(server_roles, @rules_role_name)
-    
-    Logger.warning("Role IDs resolved - no_intro: #{inspect(no_intro_role_id)}, intro: #{inspect(intro_role_id)}, rules: #{inspect(rules_role_id)}")
+
+    Logger.warning(
+      "Role IDs resolved - no_intro: #{inspect(no_intro_role_id)}, intro: #{inspect(intro_role_id)}, rules: #{inspect(rules_role_id)}"
+    )
+
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
     msg_has_space = String.contains?(msg_content, " ")
 
@@ -437,7 +445,10 @@ defmodule DopaTeam.Consumer do
 
     if is_user_no_intro && msg_has_space do
       {:ok, _updated_member} =
-        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [no_intro_role_id, rules_role_id])
+        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [
+          no_intro_role_id,
+          rules_role_id
+        ])
 
       # Api.create_message(
       #   channel_id,
@@ -454,7 +465,10 @@ defmodule DopaTeam.Consumer do
   def modify_roles(guild_id, user_id, current_role_ids, role_ids_to_add, role_ids_to_remove)
       when is_integer(guild_id) and is_integer(user_id) and is_list(current_role_ids) and
              is_list(role_ids_to_add) and is_list(role_ids_to_remove) do
-    Logger.warning("modify roles: user_id: #{inspect user_id}, current roles: #{inspect current_role_ids}, to_add: #{inspect role_ids_to_add}, to_remove: #{inspect role_ids_to_remove}")
+    Logger.warning(
+      "modify roles: user_id: #{inspect(user_id)}, current roles: #{inspect(current_role_ids)}, to_add: #{inspect(role_ids_to_add)}, to_remove: #{inspect(role_ids_to_remove)}"
+    )
+
     updated_roles =
       (current_role_ids ++ role_ids_to_add)
       |> Enum.uniq()
@@ -519,11 +533,14 @@ defmodule DopaTeam.Consumer do
         ) :: boolean()
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
-    if Enum.any?(author_roles, fn role_id -> role_id in [1160011667732709413, 1160011667732709412] end) do
+    if Enum.any?(author_roles, fn role_id ->
+         role_id in [1_160_011_667_732_709_413, 1_160_011_667_732_709_412]
+       end) do
       Logger.warning("is_dm_request_allowed?: is mod or helper")
       true
     else
       Logger.warning("is_dm_request_allowed?: is not mod or helper")
+
       Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
         acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
       end)
