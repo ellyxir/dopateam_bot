@@ -2,6 +2,7 @@ defmodule DopaTeam.Consumer do
   use Nostrum.Consumer
 
   alias Nostrum.Api
+  alias Nostrum.Struct.Guild.Member
   require Logger
 
   @bot_message_delete_time_ms 30_000
@@ -257,7 +258,7 @@ defmodule DopaTeam.Consumer do
   """
   @spec get_name(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.t()) :: String.t()
   def get_name(guild_id, %Nostrum.Struct.User{id: user_id} = user) when is_integer(guild_id) do
-    with {:ok, %Nostrum.Struct.Guild.Member{} = member} <-
+    with {:ok, %Member{} = member} <-
            Nostrum.Api.get_guild_member(guild_id, user_id),
          nickname when is_binary(nickname) <- member.nick do
       nickname
@@ -472,7 +473,7 @@ defmodule DopaTeam.Consumer do
           Nostrum.Struct.Guild.Role.id()
         ]
   def get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
-    {:ok, %Nostrum.Struct.Guild.Member{roles: roles}} =
+    {:ok, %Member{roles: roles}} =
       Nostrum.Api.get_guild_member(guild_id, user_id)
 
     roles
