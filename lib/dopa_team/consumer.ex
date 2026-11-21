@@ -477,6 +477,10 @@ defmodule DopaTeam.Consumer do
       Enum.member?(author_roles, adult_role_18_id) ||
         Enum.member?(author_roles, adult_role_30_id)
 
+    is_author_minor =
+      Enum.member?(author_roles, minor_role_13_id) ||
+        Enum.member?(author_roles, minor_role_16_id)
+
     is_mentioned_minor =
       user_has_role?(guild_id, mentioned_user_id, minor_role_13_id) ||
         user_has_role?(guild_id, mentioned_user_id, minor_role_16_id)
@@ -484,7 +488,13 @@ defmodule DopaTeam.Consumer do
     is_mentioned_closed_dm = user_has_role?(guild_id, mentioned_user_id, closed_dm_role_id)
     is_mentioned_bot = user_bot?(mentioned_user_id)
 
-    rules_allow_dm?(is_mentioned_closed_dm, is_mentioned_bot, is_author_adult, is_mentioned_minor)
+    # an author with both age roles counts as an adult
+    rules_allow_dm?(
+      is_mentioned_closed_dm,
+      is_mentioned_bot,
+      is_author_minor and not is_author_adult,
+      is_mentioned_minor
+    )
   end
 
   # the dm request rules, given what we know about the author and the
@@ -492,16 +502,16 @@ defmodule DopaTeam.Consumer do
   @spec rules_allow_dm?(
           mentioned_closed_dm? :: boolean(),
           mentioned_bot? :: boolean(),
-          author_adult? :: boolean(),
+          author_minor? :: boolean(),
           mentioned_minor? :: boolean()
         ) :: boolean()
-  defp rules_allow_dm?(mentioned_closed_dm?, mentioned_bot?, author_adult?, mentioned_minor?) do
+  defp rules_allow_dm?(mentioned_closed_dm?, mentioned_bot?, author_minor?, mentioned_minor?) do
     cond do
       mentioned_closed_dm? -> false
       # if we are mentioning a bot, who cares
       mentioned_bot? -> true
-      # if author is adult and mentioned user is minor
-      author_adult? && mentioned_minor? -> false
+      # only a minor may ask a minor; adults and members with no age role may not
+      mentioned_minor? and not author_minor? -> false
       # otherwise its all good
       true -> true
     end
