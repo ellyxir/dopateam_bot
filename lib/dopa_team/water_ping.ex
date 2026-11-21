@@ -21,7 +21,7 @@ defmodule DopaTeam.WaterPing do
   @doc """
   	get current time
   """
-  def now() do
+  def now do
     System.os_time(:second)
   end
 
@@ -29,7 +29,7 @@ defmodule DopaTeam.WaterPing do
   last ping time
   """
   @spec get_timer() :: integer()
-  def get_timer() do
+  def get_timer do
     GenServer.call(__MODULE__, {:get_timer})
   end
 
@@ -37,7 +37,7 @@ defmodule DopaTeam.WaterPing do
   	set the timer to now
   """
   @spec set_timer() :: integer()
-  def set_timer() do
+  def set_timer do
     GenServer.call(__MODULE__, {:set_timer})
   end
 
