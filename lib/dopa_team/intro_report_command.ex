@@ -6,7 +6,7 @@ defmodule DopaTeam.IntroReportCommand do
 
   require Logger
 
-  alias DopaTeam.{Consumer, MemberReport, ReportStore}
+  alias DopaTeam.{Consumer, IntroReportPage, MemberReport, ReportStore}
   alias Nostrum.Struct.Interaction
 
   # interaction response types and flags, see "Interaction Response Object"
@@ -59,17 +59,17 @@ defmodule DopaTeam.IntroReportCommand do
   # aren't left on "thinking"
   @spec build_and_reply(Interaction.t(), atom()) :: :ok
   defp build_and_reply(interaction, store) do
-    content =
+    reply =
       try do
         build_and_store(interaction, store)
       catch
         kind, reason ->
           Logger.error("intro report crashed: " <> Exception.format(kind, reason, __STACKTRACE__))
 
-          "Sorry, the report failed, see the bot's log."
+          %{content: "Sorry, the report failed, see the bot's log."}
       end
 
-    case discord().edit_interaction_response(interaction, %{content: content}) do
+    case discord().edit_interaction_response(interaction, reply) do
       {:ok, _message} ->
         :ok
 
@@ -78,16 +78,20 @@ defmodule DopaTeam.IntroReportCommand do
     end
   end
 
-  @spec build_and_store(Interaction.t(), atom()) :: String.t()
+  # the reply shows the report's counts and its first page
+  @spec build_and_store(Interaction.t(), atom()) :: map()
   defp build_and_store(interaction, store) do
     case MemberReport.build(interaction.guild_id) do
       {:ok, report} ->
         :ok = ReportStore.put(store, interaction.id, report)
-        MemberReport.summary(report)
+
+        interaction.id
+        |> IntroReportPage.render(report, :no_intro, 1)
+        |> Map.put(:content, MemberReport.summary(report))
 
       error ->
         Logger.error("intro report failed: #{inspect(error)}")
-        "Sorry, the report failed: #{inspect(error)}"
+        %{content: "Sorry, the report failed: #{inspect(error)}"}
     end
   end
 

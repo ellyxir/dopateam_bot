@@ -47,7 +47,7 @@ defmodule DopaTeam.IntroReportCommandTest do
     IntroReportCommand.handle(interaction([@adult_role]))
   end
 
-  test "staff get a private 'thinking' reply, then the counts once the report is built",
+  test "staff get a private 'thinking' reply, then the first page once the report is built",
        context do
     test_pid = self()
     task_supervisor = Module.concat(__MODULE__, "Tasks#{context.line}")
@@ -63,9 +63,9 @@ defmodule DopaTeam.IntroReportCommandTest do
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
       {:ok,
        [
-         %Member{user_id: 10, roles: [1]},
-         %Member{user_id: 11, roles: [3]},
-         %Member{user_id: 12, roles: []}
+         %Member{user_id: 10, roles: [1], joined_at: 1_767_225_600},
+         %Member{user_id: 11, roles: [3], joined_at: 1_767_225_600},
+         %Member{user_id: 12, roles: [], joined_at: 1_767_225_600}
        ]}
     end)
 
@@ -81,9 +81,10 @@ defmodule DopaTeam.IntroReportCommandTest do
       store: store
     )
 
-    assert_receive {:edited, %{content: content}}
-    assert content =~ "1 with No Intro"
-    assert content =~ "1 with neither Intro nor No Intro"
+    assert_receive {:edited, %{content: content, embeds: [embed], components: [_buttons]}}
+    assert content == "3 members, 1 with No Intro, 1 with neither Intro nor No Intro"
+    assert embed.description == "<@10> · joined 2026-01-01"
+    assert embed.footer.text == "Page 1 of 1 · 1 with No Intro"
     assert {:ok, %MemberReport{member_count: 3}} = ReportStore.fetch(store, 900)
   end
 
