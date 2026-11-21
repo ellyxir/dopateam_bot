@@ -388,31 +388,11 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  defp get_all_members(guild_id) when is_number(guild_id) do
-    {:ok, member_list} = Nostrum.Api.list_guild_members(guild_id, limit: 1000, after: 0)
-    member_list
-  end
-
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
     Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
       Logger.warning("Ready event: registering commands for guild id: #{inspect(guild_id)}")
       Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
     end)
-  end
-
-  @spec has_role?(Nostrum.Struct.Guild.id(), Nostrum.Struct.User.id(), [non_neg_integer()]) ::
-          Boolean
-  defp has_role?(guild_id, user_id, role_name_list)
-       when is_integer(user_id) and is_list(role_name_list) do
-    server_roles = get_server_roles(guild_id)
-
-    role_id_list =
-      Enum.map(role_name_list, fn role_name ->
-        {:ok, role_id} = get_role_id_by_name(server_roles, role_name)
-        role_id
-      end)
-
-    Enum.member?(user_id, role_id_list)
   end
 
   defp handle_intro_message(
