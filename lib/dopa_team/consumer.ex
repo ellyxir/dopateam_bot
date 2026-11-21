@@ -508,7 +508,7 @@ defmodule DopaTeam.Consumer do
   """
   @spec has_mentions?(String.t()) :: boolean()
   def has_mentions?(message_content) when is_binary(message_content) do
-    length(get_mentions(message_content)) > 0
+    get_mentions(message_content) != []
   end
 
   @doc """
