@@ -108,7 +108,7 @@ defmodule DopaTeam.Consumer do
     if has_mentions?(content) do
       mentioned_users = get_mentions(content)
 
-      if not is_dm_request_allowed?(guild_id, author_roles, mentioned_users) do
+      if not dm_request_allowed?(guild_id, author_roles, mentioned_users) do
         msg =
           "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 10 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
 
@@ -398,26 +398,26 @@ defmodule DopaTeam.Consumer do
     end)
   end
 
-  @spec is_dm_request_allowed?(
+  @spec dm_request_allowed?(
           Nostrum.Struct.Guild.id(),
           [Nostrum.Struct.Guild.Role.id()],
           [Nostrum.Struct.User.id()] | Nostrum.Struct.User.id()
         ) :: boolean()
-  def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
+  def dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
     if staff?(get_server_roles(guild_id), author_roles) do
-      Logger.warning("is_dm_request_allowed?: is staff")
+      Logger.warning("dm_request_allowed?: is staff")
       true
     else
-      Logger.warning("is_dm_request_allowed?: is not staff")
+      Logger.warning("dm_request_allowed?: is not staff")
 
       Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
-        acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
+        acc && dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
       end)
     end
   end
 
-  def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
+  def dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
       when is_integer(guild_id) and is_list(author_roles) and is_integer(mentioned_user_id) do
     server_roles = get_server_roles(guild_id)
     {:ok, adult_role_18_id} = get_role_id_by_name(server_roles, @adult_role_18_name)
@@ -435,7 +435,7 @@ defmodule DopaTeam.Consumer do
         user_has_role?(guild_id, mentioned_user_id, minor_role_16_id)
 
     is_mentioned_closed_dm = user_has_role?(guild_id, mentioned_user_id, closed_dm_role_id)
-    is_mentioned_bot = is_user_bot?(mentioned_user_id)
+    is_mentioned_bot = user_bot?(mentioned_user_id)
 
     cond do
       is_mentioned_closed_dm -> false
@@ -448,8 +448,8 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  @spec is_user_bot?(Nostrum.Struct.User.id()) :: boolean
-  def is_user_bot?(user_id) do
+  @spec user_bot?(Nostrum.Struct.User.id()) :: boolean
+  def user_bot?(user_id) do
     {:ok, %Nostrum.Struct.User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
 
     case is_bot do
