@@ -8,8 +8,15 @@ defmodule DopaTeam.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: aliases(),
       dialyzer: [plt_add_apps: [:mix]]
     ]
+  end
+
+  # tests call the consumer directly, so they don't start the app; a
+  # started nostrum would log in to discord as the dev bot
+  defp aliases do
+    [test: "test --no-start"]
   end
 
   # Run "mix help compile.app" to learn about applications.
