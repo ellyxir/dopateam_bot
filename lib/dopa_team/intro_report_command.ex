@@ -13,6 +13,8 @@ defmodule DopaTeam.IntroReportCommand do
   # in the Discord API docs
   @channel_message_with_source 4
   @deferred_channel_message_with_source 5
+  @deferred_update_message 6
+  @update_message 7
   @ephemeral 64
 
   @typedoc "options for `handle/2`"
@@ -45,7 +47,7 @@ defmodule DopaTeam.IntroReportCommand do
       store = Keyword.get(options, :store, ReportStore)
 
       Task.Supervisor.start_child(task_supervisor, fn ->
-        build_and_reply(interaction, store)
+        build_and_reply(interaction, store, {interaction.id, :no_intro, 1})
       end)
     else
       discord().create_interaction_response(interaction, %{
@@ -55,13 +57,48 @@ defmodule DopaTeam.IntroReportCommand do
     end
   end
 
+  @doc """
+  answers a click on a report page's previous or next button by showing the
+  page it leads to, read from the stored report
+
+  Takes the same options as `handle/2`.
+  """
+  @spec handle_button(Interaction.t(), [option()]) :: term()
+  def handle_button(%Interaction{data: %{custom_id: custom_id}} = interaction, options \\ []) do
+    store = Keyword.get(options, :store, ReportStore)
+    {:ok, {report_id, group, page_number} = page} = IntroReportPage.parse_button_id(custom_id)
+
+    case ReportStore.fetch(store, report_id) do
+      {:ok, report} ->
+        discord().create_interaction_response(interaction, %{
+          type: @update_message,
+          data: IntroReportPage.render(report_id, report, group, page_number)
+        })
+
+      # the report expired or was lost in a restart, so we build it again
+      :error ->
+        {:ok} =
+          discord().create_interaction_response(interaction, %{type: @deferred_update_message})
+
+        task_supervisor = Keyword.get(options, :task_supervisor, DopaTeam.TaskSupervisor)
+
+        Task.Supervisor.start_child(task_supervisor, fn ->
+          build_and_reply(interaction, store, page)
+        end)
+    end
+  end
+
   # whatever happens while building, the deferred reply gets edited, so staff
   # aren't left on "thinking"
-  @spec build_and_reply(Interaction.t(), atom()) :: :ok
-  defp build_and_reply(interaction, store) do
+  @spec build_and_reply(
+          Interaction.t(),
+          atom(),
+          {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
+        ) :: :ok
+  defp build_and_reply(interaction, store, page) do
     reply =
       try do
-        build_and_store(interaction, store)
+        build_and_store(interaction, store, page)
       catch
         kind, reason ->
           Logger.error("intro report crashed: " <> Exception.format(kind, reason, __STACKTRACE__))
@@ -78,15 +115,19 @@ defmodule DopaTeam.IntroReportCommand do
     end
   end
 
-  # the reply shows the report's counts and its first page
-  @spec build_and_store(Interaction.t(), atom()) :: map()
-  defp build_and_store(interaction, store) do
+  # the reply shows the report's counts and the page asked for
+  @spec build_and_store(
+          Interaction.t(),
+          atom(),
+          {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
+        ) :: map()
+  defp build_and_store(interaction, store, {report_id, group, page_number}) do
     case MemberReport.build(interaction.guild_id) do
       {:ok, report} ->
-        :ok = ReportStore.put(store, interaction.id, report)
+        :ok = ReportStore.put(store, report_id, report)
 
-        interaction.id
-        |> IntroReportPage.render(report, :no_intro, 1)
+        report_id
+        |> IntroReportPage.render(report, group, page_number)
         |> Map.put(:content, MemberReport.summary(report))
 
       error ->

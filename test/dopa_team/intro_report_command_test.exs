@@ -7,8 +7,8 @@ defmodule DopaTeam.IntroReportCommandTest do
   alias DopaTeam.DiscordMock
   alias DopaTeam.IntroReportCommand
   alias DopaTeam.{MemberReport, ReportStore}
+  alias Nostrum.Struct.{ApplicationCommandInteractionData, Interaction, Message, User}
   alias Nostrum.Struct.Guild.{Member, Role}
-  alias Nostrum.Struct.{Interaction, Message, User}
 
   @guild_id 1_176_811_717_213_306_880
 
@@ -178,5 +178,79 @@ defmodule DopaTeam.IntroReportCommandTest do
       end)
 
     assert log =~ "couldn't edit the intro report reply"
+  end
+
+  describe "page buttons" do
+    setup context do
+      store = Module.concat(__MODULE__, "Store#{context.line}")
+      task_supervisor = Module.concat(__MODULE__, "Tasks#{context.line}")
+      start_supervised!({ReportStore, name: store})
+      start_supervised!({Task.Supervisor, name: task_supervisor})
+      %{store: store, task_supervisor: task_supervisor}
+    end
+
+    defp click(custom_id) do
+      %Interaction{
+        id: 950,
+        type: 3,
+        guild_id: @guild_id,
+        member: %Member{roles: [@mod_role]},
+        data: %ApplicationCommandInteractionData{custom_id: custom_id}
+      }
+    end
+
+    defp no_intro_members(count) do
+      for n <- 1..count, do: %Member{user_id: n, roles: [1], joined_at: 1_767_225_600 + n}
+    end
+
+    test "a click on a stored report shows the page it asks for", context do
+      report = %MemberReport{
+        member_count: 30,
+        no_intro: no_intro_members(30),
+        without_intro_roles: []
+      }
+
+      :ok = ReportStore.put(context.store, 900, report)
+
+      expect(DiscordMock, :create_interaction_response, fn %Interaction{id: 950}, response ->
+        assert %{type: 7, data: %{embeds: [embed], components: [_buttons]}} = response
+        assert embed.footer.text == "Page 2 of 2 · 30 with No Intro"
+        {:ok}
+      end)
+
+      expect(DiscordMock, :list_guild_members, 0, fn _guild_id, _options -> {:ok, []} end)
+
+      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+        store: context.store,
+        task_supervisor: context.task_supervisor
+      )
+    end
+
+    test "a click on an expired report rebuilds it, then shows the page", context do
+      test_pid = self()
+
+      expect(DiscordMock, :create_interaction_response, fn %Interaction{id: 950}, response ->
+        assert response == %{type: 6}
+        {:ok}
+      end)
+
+      stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+        {:ok, no_intro_members(30)}
+      end)
+
+      expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 950}, response ->
+        send(test_pid, {:edited, response})
+        {:ok, %Message{id: 901}}
+      end)
+
+      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+        store: context.store,
+        task_supervisor: context.task_supervisor
+      )
+
+      assert_receive {:edited, %{embeds: [embed], components: [_buttons]}}
+      assert embed.footer.text == "Page 2 of 2 · 30 with No Intro"
+      assert {:ok, %MemberReport{member_count: 30}} = ReportStore.fetch(context.store, 900)
+    end
   end
 end
