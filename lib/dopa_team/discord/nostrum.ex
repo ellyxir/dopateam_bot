@@ -40,5 +40,8 @@ defmodule DopaTeam.Discord.Nostrum do
   defdelegate get_user(user_id), to: User, as: :get
 
   @impl true
+  defdelegate list_guild_members(guild_id, options), to: Guild, as: :members
+
+  @impl true
   defdelegate modify_guild_member(guild_id, user_id, options), to: Guild, as: :modify_member
 end

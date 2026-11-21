@@ -25,6 +25,9 @@ defmodule DopaTeam.Discord do
   @typedoc "member fields to change, such as `roles:`"
   @type member_options() :: keyword() | map()
 
+  @typedoc "paging options for a list call, such as `limit:` and `after:`"
+  @type list_options() :: keyword()
+
   @doc "replaces the server's slash commands with these"
   @callback bulk_overwrite_guild_application_commands(Guild.id(), [command()]) ::
               {:ok, [map()]} | error()
@@ -53,6 +56,12 @@ defmodule DopaTeam.Discord do
 
   @doc "fetches a user"
   @callback get_user(User.id()) :: {:ok, User.t()} | error()
+
+  @doc """
+  fetches one page of a server's members, up to `limit:` of them with user
+  ids above `after:`
+  """
+  @callback list_guild_members(Guild.id(), list_options()) :: {:ok, [Member.t()]} | error()
 
   @doc "changes a member of a server"
   @callback modify_guild_member(Guild.id(), User.id(), member_options()) ::
