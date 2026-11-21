@@ -1,4 +1,9 @@
 defmodule DopaTeam.WaterPing do
+  @moduledoc """
+  Remembers when the last `/water` ping was sent, so the consumer can
+  enforce the cooldown between pings.
+  """
+
   use GenServer
 
   defstruct last_ping_sec: 0

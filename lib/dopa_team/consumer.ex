@@ -1,4 +1,14 @@
 defmodule DopaTeam.Consumer do
+  @moduledoc """
+  Handles Discord gateway events for the bot.
+
+  It registers the `/water` slash command, moves members from "No Intro"
+  to "Intro" when they post an introduction, removes dm requests that
+  mention Closed DM members or that adults post mentioning minors, and
+  logs voice channel status changes. Admins, MOD and Helpers are exempt
+  from the dm request check.
+  """
+
   use Nostrum.Consumer
 
   alias Nostrum.Api
