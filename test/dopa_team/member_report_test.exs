@@ -129,4 +129,15 @@ defmodule DopaTeam.MemberReportTest do
 
     assert MemberReport.build(@guild_id) == {:error, {:missing_role, "Intro"}}
   end
+
+  test "summarises the counts in a line" do
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+      {:ok, [member(10, [@no_intro_role]), member(11, [@intro_role]), member(12, [])]}
+    end)
+
+    {:ok, report} = MemberReport.build(@guild_id)
+
+    assert MemberReport.summary(report) ==
+             "3 members, 1 with No Intro, 1 with neither Intro nor No Intro"
+  end
 end

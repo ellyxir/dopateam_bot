@@ -13,14 +13,26 @@ defmodule DopaTeam.MemberReport do
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
 
-  @enforce_keys [:no_intro, :without_intro_roles]
-  defstruct [:no_intro, :without_intro_roles]
+  @enforce_keys [:member_count, :no_intro, :without_intro_roles]
+  defstruct [:member_count, :no_intro, :without_intro_roles]
 
   @typedoc """
+  * `member_count` - how many members the server has
   * `no_intro` - members with the No Intro role
   * `without_intro_roles` - members, not bots, with neither Intro nor No Intro
   """
-  @type t() :: %__MODULE__{no_intro: [Member.t()], without_intro_roles: [Member.t()]}
+  @type t() :: %__MODULE__{
+          member_count: non_neg_integer(),
+          no_intro: [Member.t()],
+          without_intro_roles: [Member.t()]
+        }
+
+  @doc "the report's counts, in a line of text"
+  @spec summary(t()) :: String.t()
+  def summary(%__MODULE__{} = report) do
+    "#{report.member_count} members, #{length(report.no_intro)} with No Intro, " <>
+      "#{length(report.without_intro_roles)} with neither Intro nor No Intro"
+  end
 
   # discord's largest page of members
   @max_page_size 1000
@@ -47,6 +59,7 @@ defmodule DopaTeam.MemberReport do
 
       {:ok,
        %__MODULE__{
+         member_count: length(members),
          no_intro: Enum.filter(members, &(no_intro_role_id in &1.roles)),
          without_intro_roles: without_intro_roles
        }}
