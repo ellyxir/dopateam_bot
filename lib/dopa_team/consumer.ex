@@ -107,8 +107,7 @@ defmodule DopaTeam.Consumer do
   def handle_event(
         {:MESSAGE_CREATE,
          %Nostrum.Struct.Message{
-           id: msg_id,
-           author: %{id: author_id, bot: is_bot},
+           author: %{bot: is_bot},
            guild_id: guild_id,
            channel_id: channel_id,
            member: %{roles: author_roles},
@@ -120,38 +119,7 @@ defmodule DopaTeam.Consumer do
       mentioned_users = get_mentions(content)
 
       if not dm_request_allowed?(guild_id, author_roles, mentioned_users) do
-        msg =
-          "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 10 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
-
-        {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} =
-          Api.create_message(
-            channel_id,
-            content: msg,
-            message_reference: %{message_id: msg_id}
-          )
-
-        # delete original message
-        case Nostrum.Api.delete_message(original_message) do
-          {:error, reason} ->
-            Logger.error(
-              "could not delete message id #{msg_id} in channel #{channel_id}, reason=#{inspect(reason)}"
-            )
-
-          {:ok} ->
-            {:ok}
-        end
-
-        log_illegal_dm_request(guild_id, author_id, mentioned_users)
-
-        pid =
-          spawn(fn ->
-            receive do
-              {:delete, channel_id, bot_msg_id} ->
-                Nostrum.Api.delete_message(channel_id, bot_msg_id)
-            end
-          end)
-
-        Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
+        reject_dm_request(original_message, mentioned_users)
       end
     end
   end
@@ -349,6 +317,51 @@ defmodule DopaTeam.Consumer do
       end)
 
     Nostrum.Api.modify_guild_member(guild_id, user_id, roles: updated_roles)
+  end
+
+  # replies with a warning, deletes the request, logs it, and deletes the
+  # warning after a while
+  @spec reject_dm_request(Nostrum.Struct.Message.t(), [User.id()]) :: term()
+  defp reject_dm_request(
+         %Nostrum.Struct.Message{
+           id: msg_id,
+           author: %{id: author_id},
+           guild_id: guild_id,
+           channel_id: channel_id
+         } = original_message,
+         mentioned_users
+       ) do
+    msg =
+      "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 10 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
+
+    {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} =
+      Api.create_message(
+        channel_id,
+        content: msg,
+        message_reference: %{message_id: msg_id}
+      )
+
+    case Nostrum.Api.delete_message(original_message) do
+      {:error, reason} ->
+        Logger.error(
+          "could not delete message id #{msg_id} in channel #{channel_id}, reason=#{inspect(reason)}"
+        )
+
+      {:ok} ->
+        {:ok}
+    end
+
+    log_illegal_dm_request(guild_id, author_id, mentioned_users)
+
+    pid =
+      spawn(fn ->
+        receive do
+          {:delete, channel_id, bot_msg_id} ->
+            Nostrum.Api.delete_message(channel_id, bot_msg_id)
+        end
+      end)
+
+    Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
   end
 
   @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), User.id(), [
