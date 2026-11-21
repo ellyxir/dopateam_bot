@@ -5,7 +5,9 @@ defmodule DopaTeam.MemberReport do
   It only reads: it sends no messages and changes no roles.
   """
 
-  alias Nostrum.Struct.Guild
+  require Logger
+
+  alias Nostrum.Struct.{Guild, User}
   alias Nostrum.Struct.Guild.{Member, Role}
 
   @no_intro_role_name "No Intro"
@@ -16,7 +18,7 @@ defmodule DopaTeam.MemberReport do
 
   @typedoc """
   * `no_intro` - members with the No Intro role
-  * `without_intro_roles` - members with neither Intro nor No Intro
+  * `without_intro_roles` - members, not bots, with neither Intro nor No Intro
   """
   @type t() :: %__MODULE__{no_intro: [Member.t()], without_intro_roles: [Member.t()]}
 
@@ -38,11 +40,15 @@ defmodule DopaTeam.MemberReport do
          {:ok, no_intro_role_id} <- role_id(roles, @no_intro_role_name),
          {:ok, intro_role_id} <- role_id(roles, @intro_role_name),
          {:ok, members} <- fetch_members(guild_id, page_size, 0, []) do
+      without_intro_roles =
+        members
+        |> Enum.reject(&(no_intro_role_id in &1.roles or intro_role_id in &1.roles))
+        |> reject_bots()
+
       {:ok,
        %__MODULE__{
          no_intro: Enum.filter(members, &(no_intro_role_id in &1.roles)),
-         without_intro_roles:
-           Enum.reject(members, &(no_intro_role_id in &1.roles or intro_role_id in &1.roles))
+         without_intro_roles: without_intro_roles
        }}
     end
   end
@@ -62,6 +68,30 @@ defmodule DopaTeam.MemberReport do
       error ->
         error
     end
+  end
+
+  # nostrum's member list drops each member's user, so it doesn't say who
+  # is a bot; we look up each user, but only for members with neither intro
+  # role, as bots never get one. a member whose lookup fails is left out and
+  # logged, so one failed call doesn't lose the whole report
+  @spec reject_bots([Member.t()]) :: [Member.t()]
+  defp reject_bots(members) do
+    Enum.filter(members, fn member ->
+      case discord().get_user(member.user_id) do
+        {:ok, %User{bot: true}} ->
+          false
+
+        {:ok, %User{}} ->
+          true
+
+        error ->
+          Logger.warning(
+            "member report: left out user #{member.user_id}, bot lookup failed: #{inspect(error)}"
+          )
+
+          false
+      end
+    end)
   end
 
   @spec role_id([Role.t()], String.t()) ::
