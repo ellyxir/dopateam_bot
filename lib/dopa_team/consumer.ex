@@ -295,6 +295,13 @@ defmodule DopaTeam.Consumer do
   @doc """
   adds roles and removes roles in one pass. will do adds first then removes
   """
+  @spec modify_roles(
+          Nostrum.Struct.Guild.id(),
+          User.id(),
+          [Nostrum.Struct.Guild.Role.id()],
+          [Nostrum.Struct.Guild.Role.id()],
+          [Nostrum.Struct.Guild.Role.id()]
+        ) :: Nostrum.Api.error() | {:ok, Member.t()}
   def modify_roles(guild_id, user_id, current_role_ids, role_ids_to_add, role_ids_to_remove)
       when is_integer(guild_id) and is_integer(user_id) and is_list(current_role_ids) and
              is_list(role_ids_to_add) and is_list(role_ids_to_remove) do
@@ -507,6 +514,9 @@ defmodule DopaTeam.Consumer do
     roles
   end
 
+  @doc """
+  finds the id of the role with exactly this name in the server's roles
+  """
   @spec get_role_id_by_name([Nostrum.Struct.Guild.Role.t()], String.t()) ::
           {:ok, Nostrum.Struct.Guild.Role.id()} | {:error, String.t()}
   def get_role_id_by_name(server_roles, role_name)

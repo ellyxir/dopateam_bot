@@ -13,6 +13,11 @@ defmodule DopaTeam.WaterPing do
           last_ping_sec: integer()
         }
 
+  @doc """
+  starts the server with no ping recorded, so the first ping is allowed
+  straight away
+  """
+  @spec start_link(term()) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %__MODULE__{}, name: __MODULE__)
   end
@@ -26,6 +31,7 @@ defmodule DopaTeam.WaterPing do
   @doc """
   	get current time
   """
+  @spec now() :: integer()
   def now do
     System.os_time(:second)
   end
