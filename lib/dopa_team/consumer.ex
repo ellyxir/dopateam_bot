@@ -16,6 +16,24 @@ defmodule DopaTeam.Consumer do
   alias Nostrum.Struct.User
   require Logger
 
+  @typedoc "the exact name of a role in a discord server, such as \"MOD\""
+  @type role_name() :: String.t()
+
+  @typedoc "the text of a discord message"
+  @type message_content() :: String.t()
+
+  @typedoc "the name we show for a member: their nickname, their username, or a mention"
+  @type display_name() :: String.t()
+
+  @typedoc "a line we post to one of the logging channels"
+  @type log_message() :: String.t()
+
+  @typedoc "the name of an option on a slash command"
+  @type option_name() :: String.t()
+
+  @typedoc "the value a member gave for a slash command option"
+  @type option_value() :: term()
+
   @bot_message_delete_time_ms 30_000
 
   # the discord server ids
@@ -232,7 +250,7 @@ defmodule DopaTeam.Consumer do
   @doc """
     returns the nickname of the user if avail or username or <@userid> mention format if all fails
   """
-  @spec get_name(Nostrum.Struct.Guild.id(), User.t()) :: String.t()
+  @spec get_name(Nostrum.Struct.Guild.id(), User.t()) :: display_name()
   def get_name(guild_id, %User{id: user_id} = user) when is_integer(guild_id) do
     with {:ok, %Member{} = member} <-
            Nostrum.Api.get_guild_member(guild_id, user_id),
@@ -383,7 +401,7 @@ defmodule DopaTeam.Consumer do
     )
   end
 
-  @spec log_event(Nostrum.Struct.Guild.id(), String.t()) :: any()
+  @spec log_event(Nostrum.Struct.Guild.id(), log_message()) :: any()
   defp log_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@logging_channel, guild_id) do
       {:ok, channel_id} ->
@@ -397,7 +415,7 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  @spec log_vc_event(Nostrum.Struct.Guild.id(), String.t()) :: any()
+  @spec log_vc_event(Nostrum.Struct.Guild.id(), log_message()) :: any()
   defp log_vc_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@vc_status_logging_channel, guild_id) do
       {:ok, channel_id} ->
@@ -470,7 +488,12 @@ defmodule DopaTeam.Consumer do
 
   # the dm request rules, given what we know about the author and the
   # mentioned user
-  @spec rules_allow_dm?(boolean(), boolean(), boolean(), boolean()) :: boolean()
+  @spec rules_allow_dm?(
+          mentioned_closed_dm? :: boolean(),
+          mentioned_bot? :: boolean(),
+          author_adult? :: boolean(),
+          mentioned_minor? :: boolean()
+        ) :: boolean()
   defp rules_allow_dm?(mentioned_closed_dm?, mentioned_bot?, author_adult?, mentioned_minor?) do
     cond do
       mentioned_closed_dm? -> false
@@ -483,7 +506,7 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  @spec user_bot?(User.id()) :: boolean
+  @spec user_bot?(User.id()) :: boolean()
   defp user_bot?(user_id) do
     {:ok, %User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
 
@@ -517,8 +540,8 @@ defmodule DopaTeam.Consumer do
   @doc """
   finds the id of the role with exactly this name in the server's roles
   """
-  @spec get_role_id_by_name([Nostrum.Struct.Guild.Role.t()], String.t()) ::
-          {:ok, Nostrum.Struct.Guild.Role.id()} | {:error, String.t()}
+  @spec get_role_id_by_name([Nostrum.Struct.Guild.Role.t()], role_name()) ::
+          {:ok, Nostrum.Struct.Guild.Role.id()} | {:error, reason :: String.t()}
   def get_role_id_by_name(server_roles, role_name)
       when is_list(server_roles) and is_binary(role_name) do
     role_id =
@@ -545,7 +568,7 @@ defmodule DopaTeam.Consumer do
   @doc """
   does the passed in string have a discord mention which looks like <@id> where id is a big integer
   """
-  @spec has_mentions?(String.t()) :: boolean()
+  @spec has_mentions?(message_content()) :: boolean()
   def has_mentions?(message_content) when is_binary(message_content) do
     get_mentions(message_content) != []
   end
@@ -553,7 +576,7 @@ defmodule DopaTeam.Consumer do
   @doc """
   returns a list of integer mention ids for users mentioned in the message
   """
-  @spec get_mentions(String.t()) :: [integer()]
+  @spec get_mentions(message_content()) :: [User.id()]
   def get_mentions(message_content) when is_binary(message_content) do
     regex = ~r/<@(\d+)>/
 
@@ -569,10 +592,10 @@ defmodule DopaTeam.Consumer do
     finds matching option from list of options using the option_name, pulls out option value from ApplicationCommandInteractionDataOption
   """
   @spec get_option(
-          [Nostrum.Struct.ApplicationCommandInteractionDataOption.t()],
-          String.t(),
-          any()
-        ) :: any()
+          [Nostrum.Struct.ApplicationCommandInteractionDataOption.t()] | nil,
+          option_name(),
+          default :: option_value()
+        ) :: option_value()
 
   def get_option(options, option_name, default \\ nil)
 

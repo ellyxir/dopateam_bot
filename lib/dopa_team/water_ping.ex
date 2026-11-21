@@ -8,9 +8,12 @@ defmodule DopaTeam.WaterPing do
 
   defstruct last_ping_sec: 0
 
+  @typedoc "a unix time in seconds"
+  @type unix_seconds() :: integer()
+
   @typedoc "last_ping_sec is unix time seconds since last water ping or when genserver started, whichever is later"
   @type t :: %__MODULE__{
-          last_ping_sec: integer()
+          last_ping_sec: unix_seconds()
         }
 
   @doc """
@@ -31,7 +34,7 @@ defmodule DopaTeam.WaterPing do
   @doc """
   	get current time
   """
-  @spec now() :: integer()
+  @spec now() :: unix_seconds()
   def now do
     System.os_time(:second)
   end
@@ -39,7 +42,7 @@ defmodule DopaTeam.WaterPing do
   @doc """
   last ping time
   """
-  @spec get_timer() :: integer()
+  @spec get_timer() :: unix_seconds()
   def get_timer do
     GenServer.call(__MODULE__, {:get_timer})
   end
@@ -47,7 +50,7 @@ defmodule DopaTeam.WaterPing do
   @doc """
   	set the timer to now
   """
-  @spec set_timer() :: integer()
+  @spec set_timer() :: unix_seconds()
   def set_timer do
     GenServer.call(__MODULE__, {:set_timer})
   end
