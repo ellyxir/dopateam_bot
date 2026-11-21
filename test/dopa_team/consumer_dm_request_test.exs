@@ -114,6 +114,14 @@ defmodule DopaTeam.ConsumerDmRequestTest do
     refute_received {:deleted, _message_id}
   end
 
+  test "a member with both an adult and a minor role counts as an adult" do
+    dm_request([@minor_role, @adult_role], "<@#{@minor_id}> can i dm you?")
+
+    assert_received {:created, @dm_channel_id, _warning}
+    assert_received {:deleted, 400}
+    assert_receive {:deleted, @dm_channel_id, 500}
+  end
+
   test "a member with no age role may not ask to dm a minor" do
     dm_request([], "<@#{@minor_id}> can i dm you?")
 
