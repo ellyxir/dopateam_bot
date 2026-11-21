@@ -332,7 +332,7 @@ defmodule DopaTeam.Consumer do
          mentioned_users
        ) do
     msg =
-      "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 10 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
+      "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 11 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
 
     {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} =
       Api.create_message(
