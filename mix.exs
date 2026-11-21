@@ -30,7 +30,7 @@ defmodule DopaTeam.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:nostrum, github: "Kraigie/nostrum"},
+      {:nostrum, "~> 0.10.4"},
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:mox, "~> 1.2", only: :test}

@@ -4,7 +4,7 @@ defmodule DopaTeam.Discord do
 
   `DopaTeam.Consumer` calls the module set as `:discord` in the
   `:dopa_team` app config. In production that is `DopaTeam.Discord.Nostrum`,
-  which passes each call to `Nostrum.Api`; tests set a mock instead.
+  which passes each call to nostrum's api modules; tests set a mock instead.
   """
 
   alias Nostrum.Struct.{Channel, Guild, Interaction, Message, User}
