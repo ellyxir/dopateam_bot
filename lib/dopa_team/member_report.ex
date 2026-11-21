@@ -20,11 +20,21 @@ defmodule DopaTeam.MemberReport do
   """
   @type t() :: %__MODULE__{no_intro: [Member.t()], without_intro_roles: [Member.t()]}
 
-  @doc "fetches the server's members and sorts out who has not done an intro"
-  @spec build(Guild.id()) :: {:ok, t()} | DopaTeam.Discord.error()
-  def build(guild_id) do
+  # discord's largest page of members
+  @max_page_size 1000
+
+  @doc """
+  fetches the server's members and sorts out who has not done an intro
+
+  Options:
+  * `page_size:` - members to fetch per api call, at most #{@max_page_size}
+  """
+  @spec build(Guild.id(), page_size: pos_integer()) :: {:ok, t()} | DopaTeam.Discord.error()
+  def build(guild_id, options \\ []) do
+    page_size = Keyword.get(options, :page_size, @max_page_size)
+
     with {:ok, roles} <- discord().get_guild_roles(guild_id),
-         {:ok, members} <- discord().list_guild_members(guild_id, limit: 1000) do
+         {:ok, members} <- fetch_members(guild_id, page_size, 0, []) do
       no_intro_role_id = role_id!(roles, @no_intro_role_name)
       intro_role_id = role_id!(roles, @intro_role_name)
 
@@ -34,6 +44,23 @@ defmodule DopaTeam.MemberReport do
          without_intro_roles:
            Enum.reject(members, &(no_intro_role_id in &1.roles or intro_role_id in &1.roles))
        }}
+    end
+  end
+
+  # discord pages members by user id: each page holds the members whose ids
+  # come after the last id of the page before; a short page is the last one
+  @spec fetch_members(Guild.id(), pos_integer(), non_neg_integer(), [[Member.t()]]) ::
+          {:ok, [Member.t()]} | DopaTeam.Discord.error()
+  defp fetch_members(guild_id, page_size, after_id, pages) do
+    case discord().list_guild_members(guild_id, limit: page_size, after: after_id) do
+      {:ok, page} when length(page) < page_size ->
+        {:ok, Enum.concat(Enum.reverse([page | pages]))}
+
+      {:ok, page} ->
+        fetch_members(guild_id, page_size, List.last(page).user_id, [page | pages])
+
+      error ->
+        error
     end
   end
 

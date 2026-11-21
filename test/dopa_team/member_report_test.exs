@@ -58,4 +58,24 @@ defmodule DopaTeam.MemberReportTest do
     assert {:ok, report} = MemberReport.build(@guild_id)
     assert Enum.map(report.without_intro_roles, & &1.user_id) == [12, 13]
   end
+
+  test "follows the pages until a page comes back short" do
+    expect(DiscordMock, :list_guild_members, fn @guild_id, options ->
+      assert options == [limit: 2, after: 0]
+      {:ok, [member(10, [@no_intro_role]), member(11, [@intro_role])]}
+    end)
+
+    expect(DiscordMock, :list_guild_members, fn @guild_id, options ->
+      assert options == [limit: 2, after: 11]
+      {:ok, [member(12, [@no_intro_role]), member(13, [@intro_role])]}
+    end)
+
+    expect(DiscordMock, :list_guild_members, fn @guild_id, options ->
+      assert options == [limit: 2, after: 13]
+      {:ok, [member(14, [@no_intro_role])]}
+    end)
+
+    assert {:ok, report} = MemberReport.build(@guild_id, page_size: 2)
+    assert Enum.map(report.no_intro, & &1.user_id) == [10, 12, 14]
+  end
 end
