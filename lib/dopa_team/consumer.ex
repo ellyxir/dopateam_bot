@@ -33,8 +33,6 @@ defmodule DopaTeam.Consumer do
   @typedoc "the value a member gave for a slash command option"
   @type option_value() :: term()
 
-  @bot_message_delete_time_ms 30_000
-
   # the discord server ids
   @live_guild_id 1_160_011_667_204_231_300
   @bot_test_guild_id 1_176_811_717_213_306_880
@@ -382,7 +380,11 @@ defmodule DopaTeam.Consumer do
         end
       end)
 
-    Process.send_after(pid, {:delete, channel_id, bot_msg_id}, @bot_message_delete_time_ms)
+    Process.send_after(
+      pid,
+      {:delete, channel_id, bot_msg_id},
+      Application.fetch_env!(:dopa_team, :dm_warning_delete_ms)
+    )
   end
 
   @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), User.id(), [

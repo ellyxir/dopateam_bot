@@ -12,3 +12,10 @@ config :nostrum,
 
 # the module the consumer makes its discord api calls through
 config :dopa_team, discord: DopaTeam.Discord.Nostrum
+
+# how long the warning we post about a removed dm request stays up
+config :dopa_team, dm_warning_delete_ms: 30_000
+
+if config_env() == :test do
+  import_config "test.exs"
+end
