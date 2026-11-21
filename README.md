@@ -28,6 +28,11 @@ A Discord bot built with Elixir and Nostrum for the DopaTeam Discord server, pro
   - 3-hour cooldown between pings
   - Role-based mentions for water reminders
 
+- **Intro Report** (staff only)
+  - `/intro-report` lists members who haven't done an intro
+  - Pages of 25 members, oldest join first, with previous and next buttons
+  - Only reads: sends no messages to members and changes no roles
+
 - **Voice Channel Status Logging**
   - Tracks and logs voice channel status updates
   - Audit log integration for tracking changes
@@ -121,6 +126,13 @@ iex -S mix
   - 3-hour cooldown between uses
   - Mentions all users with the water reminder role
 
+- `/intro-report [group]` - Staff only (Admins, MOD, Helpers)
+  - Replies privately with the member counts and a page of members
+  - `group` picks the list: members with the "No Intro" role (default),
+    or members with neither "Intro" nor "No Intro" (bots left out)
+  - The report is kept for an hour, so paging doesn't fetch the members
+    again; after that, a click builds it again
+
 ## Project Structure
 
 ```
@@ -133,6 +145,13 @@ dopateam_bot/
 │   └── dopa_team/
 │       ├── application.ex # OTP Application
 │       ├── consumer.ex    # Discord event consumer
+│       ├── discord.ex     # Behaviour for the Discord API calls we make
+│       ├── discord/
+│       │   └── nostrum.ex # Production implementation over nostrum
+│       ├── intro_report_command.ex # /intro-report and its page buttons
+│       ├── intro_report_page.ex    # Renders a report page as an embed
+│       ├── member_report.ex        # Finds members without an intro
+│       ├── report_store.ex         # Keeps built reports for an hour
 │       └── water_ping.ex  # Water reminder state management
 ├── test/                  # Test files
 ├── mix.exs               # Project configuration
@@ -143,6 +162,10 @@ dopateam_bot/
 
 - **DopaTeam.Consumer** - Main event handler for Discord events
 - **DopaTeam.WaterPing** - GenServer managing water reminder cooldowns
+- **DopaTeam.MemberReport** - Pages through a server's members and groups
+  those without an intro
+- **DopaTeam.ReportStore** - GenServer owning an ETS table of built reports
+- **DopaTeam.IntroReportCommand** - Handles `/intro-report` and its buttons
 - **DopaTeam.Application** - OTP application supervisor
 
 ## Logging
