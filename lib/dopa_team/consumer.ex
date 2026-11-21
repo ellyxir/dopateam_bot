@@ -424,6 +424,21 @@ defmodule DopaTeam.Consumer do
     end
   end
 
+  @doc """
+  given the server's roles and an author's role ids, says whether the author
+  is staff, which exempts them from the dm request check
+  """
+  @spec staff?([Nostrum.Struct.Guild.Role.t()], [Nostrum.Struct.Guild.Role.id()]) :: boolean()
+  def staff?(server_roles, author_role_ids)
+      when is_list(server_roles) and is_list(author_role_ids) do
+    Enum.any?([@admin_role_name, @mod_role_name, @helper_role_name], fn role_name ->
+      case get_role_id_by_name(server_roles, role_name) do
+        {:ok, role_id} -> role_id in author_role_ids
+        {:error, _reason} -> false
+      end
+    end)
+  end
+
   @spec is_dm_request_allowed?(
           Nostrum.Struct.Guild.id(),
           [Nostrum.Struct.Guild.Role.id()],
@@ -431,13 +446,11 @@ defmodule DopaTeam.Consumer do
         ) :: boolean()
   def is_dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
-    if Enum.any?(author_roles, fn role_id ->
-         role_id in [1_160_011_667_732_709_413, 1_160_011_667_732_709_412]
-       end) do
-      Logger.warning("is_dm_request_allowed?: is mod or helper")
+    if staff?(get_server_roles(guild_id), author_roles) do
+      Logger.warning("is_dm_request_allowed?: is staff")
       true
     else
-      Logger.warning("is_dm_request_allowed?: is not mod or helper")
+      Logger.warning("is_dm_request_allowed?: is not staff")
 
       Enum.reduce(mentioned_user_ids, true, fn mentioned_user_id, acc ->
         acc && is_dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
