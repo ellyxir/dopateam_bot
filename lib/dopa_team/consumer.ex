@@ -11,7 +11,6 @@ defmodule DopaTeam.Consumer do
 
   use Nostrum.Consumer
 
-  alias Nostrum.Api
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Struct.User
   require Logger
@@ -160,7 +159,7 @@ defmodule DopaTeam.Consumer do
            user_id: user_id
          }, _ws_state}
       ) do
-    {:ok, %Nostrum.Struct.Channel{guild_id: guild_id}} = Nostrum.Api.get_channel(channel_id)
+    {:ok, %Nostrum.Struct.Channel{guild_id: guild_id}} = discord().get_channel(channel_id)
 
     log_vc_event(
       guild_id,
@@ -202,7 +201,7 @@ defmodule DopaTeam.Consumer do
       }
     }
 
-    _ = Nostrum.Api.create_interaction_response(interaction, msg)
+    _ = discord().create_interaction_response(interaction, msg)
 
     # send message to everyone in water channel
     # get the users name since often the discord cache doesn't work
@@ -227,7 +226,7 @@ defmodule DopaTeam.Consumer do
       ]
     }
 
-    _ = Nostrum.Api.create_message(interaction.channel_id, msg)
+    _ = discord().create_message(interaction.channel_id, msg)
   end
 
   defp handle_water_command_helper(%Nostrum.Struct.Interaction{} = interaction, elapsed_time_sec)
@@ -244,7 +243,7 @@ defmodule DopaTeam.Consumer do
       }
     }
 
-    _ = Nostrum.Api.create_interaction_response(interaction, msg)
+    _ = discord().create_interaction_response(interaction, msg)
   end
 
   @doc """
@@ -253,7 +252,7 @@ defmodule DopaTeam.Consumer do
   @spec get_name(Nostrum.Struct.Guild.id(), User.t()) :: display_name()
   def get_name(guild_id, %User{id: user_id} = user) when is_integer(guild_id) do
     with {:ok, %Member{} = member} <-
-           Nostrum.Api.get_guild_member(guild_id, user_id),
+           discord().get_guild_member(guild_id, user_id),
          nickname when is_binary(nickname) <- member.nick do
       nickname
     else
@@ -269,7 +268,7 @@ defmodule DopaTeam.Consumer do
   defp handle_ready_event(%Nostrum.Struct.Event.Ready{} = ready_event) do
     Enum.each(ready_event.guilds, fn %Nostrum.Struct.Guild.UnavailableGuild{id: guild_id} ->
       Logger.warning("Ready event: registering commands for guild id: #{inspect(guild_id)}")
-      Nostrum.Api.bulk_overwrite_guild_application_commands(guild_id, @command_list)
+      discord().bulk_overwrite_guild_application_commands(guild_id, @command_list)
     end)
   end
 
@@ -319,7 +318,7 @@ defmodule DopaTeam.Consumer do
           [Nostrum.Struct.Guild.Role.id()],
           [Nostrum.Struct.Guild.Role.id()],
           [Nostrum.Struct.Guild.Role.id()]
-        ) :: Nostrum.Api.error() | {:ok, Member.t()}
+        ) :: DopaTeam.Discord.error() | {:ok, Member.t()}
   def modify_roles(guild_id, user_id, current_role_ids, role_ids_to_add, role_ids_to_remove)
       when is_integer(guild_id) and is_integer(user_id) and is_list(current_role_ids) and
              is_list(role_ids_to_add) and is_list(role_ids_to_remove) do
@@ -338,7 +337,7 @@ defmodule DopaTeam.Consumer do
         end
       end)
 
-    Nostrum.Api.modify_guild_member(guild_id, user_id, roles: updated_roles)
+    discord().modify_guild_member(guild_id, user_id, roles: updated_roles)
   end
 
   # replies with a warning, deletes the request, logs it, and deletes the
@@ -357,13 +356,13 @@ defmodule DopaTeam.Consumer do
       "<@#{author_id}> please note that the user(s) you have mentioned is a minor and/or has the Closed DM role. Your request is not allowed according to server rules. Please see rule 11 at https://discord.com/channels/1160011667204231300/1160011784766378054 for more information.\n"
 
     {:ok, %Nostrum.Struct.Message{id: bot_msg_id}} =
-      Api.create_message(
+      discord().create_message(
         channel_id,
         content: msg,
         message_reference: %{message_id: msg_id}
       )
 
-    case Nostrum.Api.delete_message(original_message) do
+    case discord().delete_message(original_message) do
       {:error, reason} ->
         Logger.error(
           "could not delete message id #{msg_id} in channel #{channel_id}, reason=#{inspect(reason)}"
@@ -379,7 +378,7 @@ defmodule DopaTeam.Consumer do
       spawn(fn ->
         receive do
           {:delete, channel_id, bot_msg_id} ->
-            Nostrum.Api.delete_message(channel_id, bot_msg_id)
+            discord().delete_message(channel_id, bot_msg_id)
         end
       end)
 
@@ -405,7 +404,7 @@ defmodule DopaTeam.Consumer do
   defp log_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@logging_channel, guild_id) do
       {:ok, channel_id} ->
-        Api.create_message(
+        discord().create_message(
           channel_id,
           log_message
         )
@@ -419,7 +418,7 @@ defmodule DopaTeam.Consumer do
   defp log_vc_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@vc_status_logging_channel, guild_id) do
       {:ok, channel_id} ->
-        Api.create_message(
+        discord().create_message(
           channel_id,
           log_message
         )
@@ -508,7 +507,7 @@ defmodule DopaTeam.Consumer do
 
   @spec user_bot?(User.id()) :: boolean()
   defp user_bot?(user_id) do
-    {:ok, %User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
+    {:ok, %User{bot: is_bot}} = discord().get_user(user_id)
 
     case is_bot do
       nil -> false
@@ -532,7 +531,7 @@ defmodule DopaTeam.Consumer do
         ]
   defp get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
     {:ok, %Member{roles: roles}} =
-      Nostrum.Api.get_guild_member(guild_id, user_id)
+      discord().get_guild_member(guild_id, user_id)
 
     roles
   end
@@ -561,7 +560,7 @@ defmodule DopaTeam.Consumer do
 
   @spec get_server_roles(Nostrum.Struct.Guild.id()) :: [Nostrum.Struct.Guild.Role.t()]
   defp get_server_roles(guild_id) when is_integer(guild_id) do
-    {:ok, roles} = Nostrum.Api.get_guild_roles(guild_id)
+    {:ok, roles} = discord().get_guild_roles(guild_id)
     roles
   end
 
@@ -610,4 +609,8 @@ defmodule DopaTeam.Consumer do
   end
 
   def get_option(nil, _option_name, default), do: default
+
+  # the module that makes our discord api calls, see `DopaTeam.Discord`
+  @spec discord() :: module()
+  defp discord, do: Application.fetch_env!(:dopa_team, :discord)
 end

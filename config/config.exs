@@ -9,3 +9,6 @@ config :nostrum,
   num_shards: :auto,
   log_dispatch_events: false,
   log_full_events: false
+
+# the module the consumer makes its discord api calls through
+config :dopa_team, discord: DopaTeam.Discord.Nostrum
