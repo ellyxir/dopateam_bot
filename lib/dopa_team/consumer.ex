@@ -82,13 +82,11 @@ defmodule DopaTeam.Consumer do
     }
   ]
 
+  @impl true
   def handle_event({:READY, %Nostrum.Struct.Event.Ready{} = ready_event, _ws_state}) do
     handle_ready_event(ready_event)
   end
 
-  @doc """
-  handles an incoming message in one of the channels we are listening to
-  """
   def handle_event(
         {:MESSAGE_CREATE,
          %Nostrum.Struct.Message{
