@@ -58,4 +58,24 @@ defmodule DopaTeam.ConsumerIntroReportStaffTest do
     assert content =~ "1 with No Intro"
     assert {:ok, _report} = ReportStore.fetch(900)
   end
+
+  test "a click on a report page button goes to the intro report command" do
+    report = %DopaTeam.MemberReport{member_count: 0, no_intro: [], without_intro_roles: []}
+    :ok = ReportStore.put(900, report)
+
+    expect(DiscordMock, :create_interaction_response, fn %Interaction{id: 950}, response ->
+      assert %{type: 7} = response
+      {:ok}
+    end)
+
+    interaction = %Interaction{
+      id: 950,
+      type: 3,
+      guild_id: @guild_id,
+      member: %Member{roles: [@mod_role]},
+      data: %ApplicationCommandInteractionData{custom_id: "intro-report:next:900:no_intro:2"}
+    }
+
+    Consumer.handle_event({:INTERACTION_CREATE, interaction, nil})
+  end
 end

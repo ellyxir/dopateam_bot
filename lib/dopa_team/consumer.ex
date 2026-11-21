@@ -162,6 +162,15 @@ defmodule DopaTeam.Consumer do
     DopaTeam.IntroReportCommand.handle(interaction)
   end
 
+  # a click on a report page's previous or next button
+  def handle_event(
+        {:INTERACTION_CREATE,
+         %Nostrum.Struct.Interaction{data: %{custom_id: "intro-report:" <> _page}} = interaction,
+         _ws_state}
+      ) do
+    DopaTeam.IntroReportCommand.handle_button(interaction)
+  end
+
   def handle_event(
         {:GUILD_AUDIT_LOG_ENTRY_CREATE,
          %Nostrum.Struct.Guild.AuditLogEntry{
