@@ -263,11 +263,71 @@ defmodule DopaTeam.IntroReportCommandTest do
       )
     end
 
-    test "a click on an expired report rebuilds it, then shows the page", context do
+    test "a button id that doesn't parse is logged and left alone", context do
+      expect(DiscordMock, :create_interaction_response, 0, fn _interaction, _response -> {:ok} end)
+
+      log =
+        capture_log(fn ->
+          IntroReportCommand.handle_button(click("intro-report:next:900:everyone:2"),
+            store: context.store,
+            task_supervisor: context.task_supervisor
+          )
+        end)
+
+      assert log =~ "intro-report:next:900:everyone:2"
+    end
+
+    test "a page change discord rejects is logged", context do
+      report = %MemberReport{member_count: 0, no_intro: [], without_intro_roles: []}
+      :ok = ReportStore.put(context.store, 900, report)
+
+      stub(DiscordMock, :create_interaction_response, fn _interaction, _response ->
+        {:error, %Nostrum.Error.ApiError{status_code: 404}}
+      end)
+
+      log =
+        capture_log(fn ->
+          IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+            store: context.store,
+            task_supervisor: context.task_supervisor
+          )
+        end)
+
+      assert log =~ "couldn't update the intro report message"
+    end
+
+    test "no rebuild starts when the rebuilding message can't be shown", context do
+      stub(DiscordMock, :create_interaction_response, fn _interaction, _response ->
+        {:error, %Nostrum.Error.ApiError{status_code: 404}}
+      end)
+
+      expect(DiscordMock, :list_guild_members, 0, fn _guild_id, _options -> {:ok, []} end)
+
+      log =
+        capture_log(fn ->
+          result =
+            IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+              store: context.store,
+              task_supervisor: context.task_supervisor
+            )
+
+          assert result == :error
+        end)
+
+      assert log =~ "couldn't update the intro report message"
+    end
+
+    test "a click on a report that's gone says it's rebuilding, then shows the page",
+         context do
       test_pid = self()
 
+      # the buttons go, so the message can't be clicked again during the build
       expect(DiscordMock, :create_interaction_response, fn %Interaction{id: 950}, response ->
-        assert response == %{type: 6}
+        assert response == %{
+                 type: 7,
+                 data: %{content: "Rebuilding the report…", embeds: [], components: []}
+               }
+
         {:ok}
       end)
 

@@ -13,9 +13,12 @@ defmodule DopaTeam.IntroReportCommand do
   # in the Discord API docs
   @channel_message_with_source 4
   @deferred_channel_message_with_source 5
-  @deferred_update_message 6
   @update_message 7
   @ephemeral 64
+
+  # a report page: the report's id, which members it lists, and the page
+  @typep page_ref() ::
+           {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
 
   @typedoc "options for `handle/2`"
   @type option() :: {:task_supervisor, atom()} | {:store, atom()}
@@ -65,26 +68,63 @@ defmodule DopaTeam.IntroReportCommand do
   """
   @spec handle_button(Interaction.t(), [option()]) :: term()
   def handle_button(%Interaction{data: %{custom_id: custom_id}} = interaction, options \\ []) do
+    case IntroReportPage.parse_button_id(custom_id) do
+      {:ok, page} ->
+        show_page(interaction, page, options)
+
+      :error ->
+        Logger.warning("ignored an intro report button with id #{inspect(custom_id)}")
+    end
+  end
+
+  @spec show_page(
+          Interaction.t(),
+          page_ref(),
+          [option()]
+        ) :: term()
+  defp show_page(interaction, {report_id, group, page_number} = page, options) do
     store = Keyword.get(options, :store, ReportStore)
-    {:ok, {report_id, group, page_number} = page} = IntroReportPage.parse_button_id(custom_id)
 
     case ReportStore.fetch(store, report_id) do
       {:ok, report} ->
-        discord().create_interaction_response(interaction, %{
-          type: @update_message,
-          data: IntroReportPage.render(report_id, report, group, page_number)
-        })
+        update_message(interaction, IntroReportPage.render(report_id, report, group, page_number))
 
-      # the report expired or was lost in a restart, so we build it again
+      # the report expired or was lost in a restart
       :error ->
-        {:ok} =
-          discord().create_interaction_response(interaction, %{type: @deferred_update_message})
+        rebuild(interaction, store, page, options)
+    end
+  end
 
-        task_supervisor = Keyword.get(options, :task_supervisor, DopaTeam.TaskSupervisor)
+  # the buttons go while we build, so the message can't be clicked again;
+  # two clicks that land together can still both build, and both store the
+  # same report. if the message can't be updated, we don't build
+  @spec rebuild(
+          Interaction.t(),
+          atom(),
+          page_ref(),
+          [option()]
+        ) :: term()
+  defp rebuild(interaction, store, page, options) do
+    rebuilding = %{content: "Rebuilding the report…", embeds: [], components: []}
 
-        Task.Supervisor.start_child(task_supervisor, fn ->
-          build_and_reply(interaction, store, page)
-        end)
+    with :ok <- update_message(interaction, rebuilding) do
+      task_supervisor = Keyword.get(options, :task_supervisor, DopaTeam.TaskSupervisor)
+
+      Task.Supervisor.start_child(task_supervisor, fn ->
+        build_and_reply(interaction, store, page)
+      end)
+    end
+  end
+
+  @spec update_message(Interaction.t(), map()) :: :ok | :error
+  defp update_message(interaction, data) do
+    case discord().create_interaction_response(interaction, %{type: @update_message, data: data}) do
+      {:ok} ->
+        :ok
+
+      error ->
+        Logger.error("couldn't update the intro report message: #{inspect(error)}")
+        :error
     end
   end
 
@@ -104,7 +144,7 @@ defmodule DopaTeam.IntroReportCommand do
   @spec build_and_reply(
           Interaction.t(),
           atom(),
-          {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
+          page_ref()
         ) :: :ok
   defp build_and_reply(interaction, store, page) do
     reply =
@@ -130,7 +170,7 @@ defmodule DopaTeam.IntroReportCommand do
   @spec build_and_store(
           Interaction.t(),
           atom(),
-          {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
+          page_ref()
         ) :: map()
   defp build_and_store(interaction, store, {report_id, group, page_number}) do
     case MemberReport.build(interaction.guild_id) do
