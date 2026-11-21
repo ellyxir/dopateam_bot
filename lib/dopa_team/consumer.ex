@@ -50,9 +50,6 @@ defmodule DopaTeam.Consumer do
   @mod_role_name "MOD"
   @helper_role_name "Helpers"
 
-  # command to list all bots in server
-  @botlist_command "botlist"
-
   # water stuff
   @water_command "water"
   @water_elapsed_time_sec 3 * 60 * 60
@@ -62,10 +59,6 @@ defmodule DopaTeam.Consumer do
   # dev @water_emoji "<:water_bottle:1191095859350360074>"
 
   @command_list [
-    # %{
-    #   name: @botlist_command,
-    #   description: "List all bots in the server"
-    # },
     %{
       name: @water_command,
       description: "Send a water reminder ping",
@@ -184,70 +177,6 @@ defmodule DopaTeam.Consumer do
   end
 
   def handle_event(
-        {:INTERACTION_CREATE,
-         %Nostrum.Struct.Interaction{
-           guild_id: _guild_id,
-           data: %{name: @botlist_command, options: _options}
-         } =
-           interaction, _ws_state}
-      ) do
-    # defer message response
-    {:ok} = Nostrum.Api.create_interaction_response(interaction, %{type: 5})
-
-    # all_members = get_all_members(guild_id)
-    # all_user_ids =
-    #   Enum.map(all_members, fn %Nostrum.Struct.Guild.Member{user_id: user_id} ->
-    #     user_id
-    #   end)
-
-    # all_users =
-    #   Enum.reduce(all_user_ids, [], fn user_id, acc ->
-    #     {:ok, user} = Nostrum.Api.get_user(user_id)
-    #     Logger.warn("getting user #{inspect user_id}")
-    #     [user | acc]
-    #   end)
-
-    # all_bots =
-    #   Enum.filter(all_users, fn %Nostrum.Struct.User{bot: is_bot} ->
-    #     is_bot
-    #   end)
-
-    # Logger.error("all bots=#{inspect all_bots}")
-    # embed_msg =
-    #   Enum.reduce(all_bots, "", fn %Nostrum.Struct.User{} = user, acc ->
-    #     "ID:#{inspect(user.id)}, username:#{user.username}, is bot:#{inspect(user.bot)}\n" <> acc
-    #   end)
-
-    # embed =
-    #   %Nostrum.Struct.Embed{}
-    #   |> Nostrum.Struct.Embed.put_title("Bot List")
-    #   |> Nostrum.Struct.Embed.put_description(embed_msg)
-
-    # response = %{
-    #   type: 4,
-    #   data: %{
-    #     embeds: [embed]
-    #   }
-    # }
-
-    # Nostrum.Api.edit_interaction_response(interaction, response)
-  end
-
-  # def handle_event(
-  #       {:VOICE_CHANNEL_STATUS_UPDATE,
-  #       voice_status_update, _ws_state}
-  #     ) do
-  #   Logger.warning("Got Voice channel status update: #{inspect voice_status_update}")
-  # end
-
-  # def handle_event(
-  #   {:CHANNEL_TOPIC_UPDATE,
-  #   channel_topic_update, _ws_state}
-  # ) do
-  #   Logger.warning("Got channel topic update: #{inspect channel_topic_update}")
-  # end
-
-  def handle_event(
         {:GUILD_AUDIT_LOG_ENTRY_CREATE,
          %Nostrum.Struct.Guild.AuditLogEntry{
            action_type: 192,
@@ -257,10 +186,6 @@ defmodule DopaTeam.Consumer do
          }, _ws_state}
       ) do
     {:ok, %Nostrum.Struct.Channel{guild_id: guild_id}} = Nostrum.Api.get_channel(channel_id)
-
-    # Logger.warning(
-    #   "got log event for channel topic update event, status=:#{inspect(status_text)}, channel_id=#{inspect(channel_id)}, user_id=#{inspect(user_id)}, guild_id=#{inspect(guild_id)}"
-    # )
 
     log_vc_event(
       guild_id,
@@ -429,13 +354,6 @@ defmodule DopaTeam.Consumer do
           no_intro_role_id,
           rules_role_id
         ])
-
-      # Api.create_message(
-      #   channel_id,
-      #   content:
-      #     "adding intro role and removing no intro role for <@#{author_id}>, updated roles=#{inspect updated_member.roles}",
-      #   message_reference: %{message_id: msg_id}
-      # )
     end
   end
 
@@ -540,9 +458,6 @@ defmodule DopaTeam.Consumer do
       Enum.member?(author_roles, adult_role_18_id) ||
         Enum.member?(author_roles, adult_role_30_id)
 
-    # is_author_minor = Enum.member?(author_roles, minor_role_id)
-
-    # is_mentioned_adult = user_has_role?(guild_id, mentioned_user_id, adult_role_id)
     is_mentioned_minor =
       user_has_role?(guild_id, mentioned_user_id, minor_role_13_id) ||
         user_has_role?(guild_id, mentioned_user_id, minor_role_16_id)
