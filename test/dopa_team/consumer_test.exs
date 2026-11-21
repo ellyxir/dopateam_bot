@@ -55,4 +55,24 @@ defmodule DopaTeam.ConsumerTest do
       refute Consumer.has_mentions?("anyone want to chat?")
     end
   end
+
+  describe "get_option/3" do
+    alias Nostrum.Struct.ApplicationCommandInteractionDataOption, as: Option
+
+    test "returns the value of the named option" do
+      options = [%Option{name: "water_message", value: "stay hydrated"}]
+
+      assert Consumer.get_option(options, "water_message") == "stay hydrated"
+    end
+
+    test "returns the default when no option has that name" do
+      options = [%Option{name: "other", value: "x"}]
+
+      assert Consumer.get_option(options, "water_message", "none") == "none"
+    end
+
+    test "returns the default when the command has no options" do
+      assert Consumer.get_option(nil, "water_message", "none") == "none"
+    end
+  end
 end
