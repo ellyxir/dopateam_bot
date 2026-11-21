@@ -43,4 +43,19 @@ defmodule DopaTeam.MemberReportTest do
     assert {:ok, report} = MemberReport.build(@guild_id)
     assert Enum.map(report.no_intro, & &1.user_id) == [10, 12]
   end
+
+  test "lists the members who have neither Intro nor No Intro" do
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+      {:ok,
+       [
+         member(10, [@no_intro_role]),
+         member(11, [@intro_role, @adult_role]),
+         member(12, [@adult_role]),
+         member(13, [])
+       ]}
+    end)
+
+    assert {:ok, report} = MemberReport.build(@guild_id)
+    assert Enum.map(report.without_intro_roles, & &1.user_id) == [12, 13]
+  end
 end
