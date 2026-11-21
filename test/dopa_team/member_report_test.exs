@@ -78,4 +78,14 @@ defmodule DopaTeam.MemberReportTest do
     assert {:ok, report} = MemberReport.build(@guild_id, page_size: 2)
     assert Enum.map(report.no_intro, & &1.user_id) == [10, 12, 14]
   end
+
+  test "says which role is missing when the server has no Intro role" do
+    stub(DiscordMock, :get_guild_roles, fn @guild_id ->
+      {:ok, [%Role{id: @no_intro_role, name: "No Intro"}]}
+    end)
+
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options -> {:ok, []} end)
+
+    assert MemberReport.build(@guild_id) == {:error, {:missing_role, "Intro"}}
+  end
 end

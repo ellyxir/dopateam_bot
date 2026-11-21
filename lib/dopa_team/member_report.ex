@@ -29,15 +29,15 @@ defmodule DopaTeam.MemberReport do
   Options:
   * `page_size:` - members to fetch per api call, at most #{@max_page_size}
   """
-  @spec build(Guild.id(), page_size: pos_integer()) :: {:ok, t()} | DopaTeam.Discord.error()
+  @spec build(Guild.id(), page_size: pos_integer()) ::
+          {:ok, t()} | {:error, {:missing_role, String.t()}} | DopaTeam.Discord.error()
   def build(guild_id, options \\ []) do
     page_size = Keyword.get(options, :page_size, @max_page_size)
 
     with {:ok, roles} <- discord().get_guild_roles(guild_id),
+         {:ok, no_intro_role_id} <- role_id(roles, @no_intro_role_name),
+         {:ok, intro_role_id} <- role_id(roles, @intro_role_name),
          {:ok, members} <- fetch_members(guild_id, page_size, 0, []) do
-      no_intro_role_id = role_id!(roles, @no_intro_role_name)
-      intro_role_id = role_id!(roles, @intro_role_name)
-
       {:ok,
        %__MODULE__{
          no_intro: Enum.filter(members, &(no_intro_role_id in &1.roles)),
@@ -64,10 +64,13 @@ defmodule DopaTeam.MemberReport do
     end
   end
 
-  @spec role_id!([Role.t()], String.t()) :: Role.id()
-  defp role_id!(roles, name) do
-    %Role{id: id} = Enum.find(roles, &(&1.name == name))
-    id
+  @spec role_id([Role.t()], String.t()) ::
+          {:ok, Role.id()} | {:error, {:missing_role, String.t()}}
+  defp role_id(roles, name) do
+    case Enum.find(roles, &(&1.name == name)) do
+      %Role{id: id} -> {:ok, id}
+      nil -> {:error, {:missing_role, name}}
+    end
   end
 
   defp discord, do: Application.fetch_env!(:dopa_team, :discord)
