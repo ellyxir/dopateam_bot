@@ -28,6 +28,11 @@ defmodule DopaTeam.Discord.Nostrum do
   defdelegate delete_message(channel_id, message_id), to: Message, as: :delete
 
   @impl true
+  defdelegate edit_interaction_response(interaction, response),
+    to: Interaction,
+    as: :edit_response
+
+  @impl true
   defdelegate get_channel(channel_id), to: Channel, as: :get
 
   @impl true

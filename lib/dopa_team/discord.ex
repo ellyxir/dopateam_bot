@@ -36,6 +36,10 @@ defmodule DopaTeam.Discord do
   @callback create_interaction_response(Interaction.t(), interaction_response()) ::
               {:ok} | error()
 
+  @doc "replaces the reply to a slash command, such as a deferred one"
+  @callback edit_interaction_response(Interaction.t(), interaction_response()) ::
+              {:ok, Message.t()} | error()
+
   @doc "posts a message in a channel"
   @callback create_message(Channel.id(), message_options()) :: {:ok, Message.t()} | error()
 

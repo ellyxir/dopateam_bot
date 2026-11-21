@@ -8,7 +8,12 @@ defmodule DopaTeam.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      # before the task supervisor, so on shutdown it outlives the tasks
+      # storing reports in it
       DopaTeam.ReportStore,
+      # runs slow jobs, such as building a DopaTeam.MemberReport, off the
+      # consumer
+      {Task.Supervisor, name: DopaTeam.TaskSupervisor},
       DopaTeam.Consumer,
       DopaTeam.WaterPing
     ]
