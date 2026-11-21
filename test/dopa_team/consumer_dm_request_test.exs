@@ -16,6 +16,7 @@ defmodule DopaTeam.ConsumerDmRequestTest do
 
   @adult_role 18
   @minor_role 13
+  @older_minor_role 16
   @author_id 100
   @minor_id 200
   @closed_dm_id 300
@@ -37,7 +38,7 @@ defmodule DopaTeam.ConsumerDmRequestTest do
          %Role{id: @adult_role, name: "18+"},
          %Role{id: 30, name: "30+"},
          %Role{id: @minor_role, name: "13-15"},
-         %Role{id: 16, name: "16-17"},
+         %Role{id: @older_minor_role, name: "16-17"},
          %Role{id: 99, name: "Closed DM"}
        ]}
     end)
@@ -101,6 +102,13 @@ defmodule DopaTeam.ConsumerDmRequestTest do
 
   test "a minor may ask to dm a minor" do
     dm_request([@minor_role], "<@#{@minor_id}> can i dm you?")
+
+    refute_received {:created, _channel_id, _options}
+    refute_received {:deleted, _message_id}
+  end
+
+  test "a 16-17 member may ask to dm a minor" do
+    dm_request([@older_minor_role], "<@#{@minor_id}> can i dm you?")
 
     refute_received {:created, _channel_id, _options}
     refute_received {:deleted, _message_id}
