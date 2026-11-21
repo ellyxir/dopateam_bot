@@ -150,11 +150,10 @@ defmodule DopaTeam.Consumer do
     )
   end
 
-  @doc """
-    checks elapsed time since last water ping, if ok then sends message
-  """
+  # checks the time since the last water ping, and sends the ping if the
+  # cooldown has passed
   @spec handle_water_command(Nostrum.Struct.Interaction.t()) :: term()
-  def handle_water_command(%Nostrum.Struct.Interaction{} = interaction) do
+  defp handle_water_command(%Nostrum.Struct.Interaction{} = interaction) do
     last_ping_sec = DopaTeam.WaterPing.get_timer()
     now = DopaTeam.WaterPing.now()
 
@@ -365,7 +364,7 @@ defmodule DopaTeam.Consumer do
   @spec log_illegal_dm_request(Nostrum.Struct.Guild.id(), User.id(), [
           User.id()
         ]) :: any()
-  def log_illegal_dm_request(guild_id, author_id, mentioned_users) do
+  defp log_illegal_dm_request(guild_id, author_id, mentioned_users) do
     mention_refs =
       Enum.reduce(mentioned_users, "", fn id, acc ->
         "#{acc}<@#{id}> (user id: #{id}), "
@@ -378,7 +377,7 @@ defmodule DopaTeam.Consumer do
   end
 
   @spec log_event(Nostrum.Struct.Guild.id(), String.t()) :: any()
-  def log_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
+  defp log_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@logging_channel, guild_id) do
       {:ok, channel_id} ->
         Api.create_message(
@@ -392,7 +391,7 @@ defmodule DopaTeam.Consumer do
   end
 
   @spec log_vc_event(Nostrum.Struct.Guild.id(), String.t()) :: any()
-  def log_vc_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
+  defp log_vc_event(guild_id, log_message) when is_integer(guild_id) and is_binary(log_message) do
     case Map.fetch(@vc_status_logging_channel, guild_id) do
       {:ok, channel_id} ->
         Api.create_message(
@@ -425,8 +424,8 @@ defmodule DopaTeam.Consumer do
           [Nostrum.Struct.Guild.Role.id()],
           [User.id()] | User.id()
         ) :: boolean()
-  def dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
-      when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
+  defp dm_request_allowed?(guild_id, author_roles, mentioned_user_ids)
+       when is_integer(guild_id) and is_list(author_roles) and is_list(mentioned_user_ids) do
     if staff?(get_server_roles(guild_id), author_roles) do
       Logger.warning("dm_request_allowed?: is staff")
       true
@@ -439,8 +438,8 @@ defmodule DopaTeam.Consumer do
     end
   end
 
-  def dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
-      when is_integer(guild_id) and is_list(author_roles) and is_integer(mentioned_user_id) do
+  defp dm_request_allowed?(guild_id, author_roles, mentioned_user_id)
+       when is_integer(guild_id) and is_list(author_roles) and is_integer(mentioned_user_id) do
     server_roles = get_server_roles(guild_id)
     {:ok, adult_role_18_id} = get_role_id_by_name(server_roles, @adult_role_18_name)
     {:ok, adult_role_30_id} = get_role_id_by_name(server_roles, @adult_role_30_name)
@@ -478,7 +477,7 @@ defmodule DopaTeam.Consumer do
   end
 
   @spec user_bot?(User.id()) :: boolean
-  def user_bot?(user_id) do
+  defp user_bot?(user_id) do
     {:ok, %User{bot: is_bot}} = Nostrum.Api.get_user(user_id)
 
     case is_bot do
@@ -492,7 +491,7 @@ defmodule DopaTeam.Consumer do
           User.id(),
           Nostrum.Struct.Guild.Role.id()
         ) :: boolean()
-  def user_has_role?(guild_id, user_id, role_id) do
+  defp user_has_role?(guild_id, user_id, role_id) do
     user_roles = get_user_roles(guild_id, user_id)
     Enum.member?(user_roles, role_id)
   end
@@ -501,7 +500,7 @@ defmodule DopaTeam.Consumer do
   @spec get_user_roles(Nostrum.Struct.Guild.id(), User.id()) :: [
           Nostrum.Struct.Guild.Role.id()
         ]
-  def get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
+  defp get_user_roles(guild_id, user_id) when is_integer(guild_id) and is_integer(user_id) do
     {:ok, %Member{roles: roles}} =
       Nostrum.Api.get_guild_member(guild_id, user_id)
 
@@ -528,7 +527,7 @@ defmodule DopaTeam.Consumer do
   end
 
   @spec get_server_roles(Nostrum.Struct.Guild.id()) :: [Nostrum.Struct.Guild.Role.t()]
-  def get_server_roles(guild_id) when is_integer(guild_id) do
+  defp get_server_roles(guild_id) when is_integer(guild_id) do
     {:ok, roles} = Nostrum.Api.get_guild_roles(guild_id)
     roles
   end
