@@ -59,7 +59,10 @@ defmodule DopaTeam.ReportStore do
   @spec put(store :: atom(), id(), report()) :: :ok
   def put(store \\ __MODULE__, id, report), do: GenServer.call(store, {:put, id, report})
 
-  @doc "fetches the report stored under an id"
+  @doc """
+  fetches the report stored under an id; it's an error if there is none, if
+  it has expired, or if the store isn't running, such as while it restarts
+  """
   @spec fetch(store :: atom(), id()) :: {:ok, report()} | :error
   def fetch(store \\ __MODULE__, id) do
     now = now_ms()
@@ -68,6 +71,9 @@ defmodule DopaTeam.ReportStore do
       [{^id, report, expires_at}] when now < expires_at -> {:ok, report}
       _expired_or_missing -> :error
     end
+  rescue
+    # the table goes with its owner, and lookup raises when it's gone
+    ArgumentError -> :error
   end
 
   @impl true

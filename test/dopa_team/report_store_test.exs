@@ -64,4 +64,8 @@ defmodule DopaTeam.ReportStoreTest do
 
     assert :ets.lookup(store, 1) == []
   end
+
+  test "fetching from a store that isn't running gives an error" do
+    assert ReportStore.fetch(Module.concat(__MODULE__, "NotRunning"), 1) == :error
+  end
 end
