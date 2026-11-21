@@ -7,7 +7,6 @@ A Discord bot built with Elixir and Nostrum for the DopaTeam Discord server, pro
 ### Core Functionality
 
 - **Automated Role Management**
-  - Automatically assigns "No Intro" role to new members
   - Manages intro/no-intro role transitions based on introduction messages
   - Supports age-based roles (13-15, 16-17, 18+, 30+)
   - Closed DM role management
