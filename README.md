@@ -38,6 +38,8 @@ A Discord bot built with Elixir and Nostrum for the DopaTeam Discord server, pro
 - Mix build tool
 - Discord Bot Token
 
+With Nix, `nix develop` gives a shell with Elixir 1.20 on OTP 29.
+
 ## Installation
 
 1. Clone the repository:
