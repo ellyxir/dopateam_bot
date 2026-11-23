@@ -10,6 +10,11 @@ config :nostrum,
   log_dispatch_events: false,
   log_full_events: false
 
+# nostrum keeps no messages by default; we keep the newest ones in memory so
+# a deleted intro still says whose it was
+config :nostrum,
+  caches: %{messages: {Nostrum.Cache.MessageCache.Mnesia, []}}
+
 # the module the consumer makes its discord api calls through
 config :dopa_team, discord: DopaTeam.Discord.Nostrum
 

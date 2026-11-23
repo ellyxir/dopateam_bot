@@ -27,7 +27,8 @@ defmodule DopaTeam.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      # nostrum's message cache keeps its table in mnesia
+      extra_applications: [:logger, :mnesia],
       mod: {DopaTeam.Application, []}
     ]
   end

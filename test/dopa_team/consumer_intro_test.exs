@@ -48,7 +48,7 @@ defmodule DopaTeam.ConsumerIntroTest do
   end
 
   # discord sends the whole edited message; nostrum pairs it with the old
-  # one from its message cache, which the bot doesn't keep
+  # one when its message cache still has it, which we don't rely on
   defp edit(author_roles, content) do
     message = %Message{
       id: 400,
@@ -197,5 +197,107 @@ defmodule DopaTeam.ConsumerIntroTest do
     end)
 
     intro([@no_intro_role], "hi, i'm new here")
+  end
+
+  describe "a deleted intro" do
+    setup do
+      stub(DiscordMock, :get_guild_roles, fn @guild_id ->
+        {:ok,
+         [
+           %Role{id: @no_intro_role, name: "No Intro"},
+           %Role{id: @intro_role, name: "Intro"},
+           %Role{id: 5, name: "Access"},
+           %Role{id: 7, name: "Helpers"},
+           %Role{id: 8, name: "MOD"}
+         ]}
+      end)
+
+      :ok
+    end
+
+    # nostrum fills in the deleted message from its message cache, when it
+    # has it
+    defp delete(deleted_message) do
+      event = %Nostrum.Struct.Event.MessageDelete{
+        id: 400,
+        channel_id: @intro_channel_id,
+        guild_id: @guild_id,
+        deleted_message: deleted_message
+      }
+
+      Consumer.handle_event({:MESSAGE_DELETE, event, nil})
+    end
+
+    defp intro_message do
+      %Message{
+        id: 400,
+        author: %User{id: @author_id, username: "newbie", bot: nil},
+        guild_id: @guild_id,
+        channel_id: @intro_channel_id,
+        content: "hi, i'm new here"
+      }
+    end
+
+    defp current_roles(roles) do
+      stub(DiscordMock, :get_guild_member, fn @guild_id, @author_id ->
+        {:ok, %Member{user_id: @author_id, roles: roles}}
+      end)
+    end
+
+    test "from a member with Intro pings helpers with their name and id" do
+      current_roles([@intro_role])
+
+      expect(DiscordMock, :create_message, fn @general_log_channel_id, content ->
+        assert content =~ "<@&7>"
+        assert content =~ "newbie"
+        assert content =~ "#{@author_id}"
+        {:ok, %Message{id: 401}}
+      end)
+
+      delete(intro_message())
+    end
+
+    test "from a staff member is not logged" do
+      current_roles([@intro_role, 8])
+
+      expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+      delete(intro_message())
+    end
+
+    test "from a member with Access is logged" do
+      current_roles([5])
+
+      expect(DiscordMock, :create_message, fn @general_log_channel_id, _content ->
+        {:ok, %Message{id: 401}}
+      end)
+
+      delete(intro_message())
+    end
+
+    test "from a member without Intro or Access is not logged" do
+      current_roles([@no_intro_role])
+
+      expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+      delete(intro_message())
+    end
+
+    test "from someone no longer in the server is not logged" do
+      stub(DiscordMock, :get_guild_member, fn @guild_id, @author_id ->
+        {:error, %Nostrum.Error.ApiError{status_code: 404}}
+      end)
+
+      expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+      delete(intro_message())
+    end
+
+    test "that nostrum didn't have cached is ignored, as we can't tell whose it was" do
+      expect(DiscordMock, :get_guild_member, 0, fn _guild_id, _user_id -> :ok end)
+      expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+      delete(nil)
+    end
   end
 end

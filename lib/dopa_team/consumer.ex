@@ -6,7 +6,8 @@ defmodule DopaTeam.Consumer do
   members from "No Intro" to "Intro" when they post an introduction or edit
   one into shape, flags in the general log an introduction from a member
   with none of Intro, Access and No Intro, logs one word introductions it
-  doesn't count, removes dm requests that mention Closed DM members or that
+  doesn't count, pings helpers when a member who still has Intro or Access
+  has their intro deleted, removes dm requests that mention Closed DM members or that
   mention minors and come from anyone but a minor, and logs voice channel
   status changes. Admins, MOD and Helpers are exempt from the dm request
   check.
@@ -158,10 +159,26 @@ defmodule DopaTeam.Consumer do
     handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content, :post)
   end
 
+  # discord doesn't say whose message was deleted; nostrum's message cache
+  # fills in `deleted_message` when it still has the message, which is
+  # usually the case for an intro deleted soon after it got its role
+  def handle_event(
+        {:MESSAGE_DELETE,
+         %Nostrum.Struct.Event.MessageDelete{
+           channel_id: channel_id,
+           guild_id: guild_id,
+           deleted_message: %Nostrum.Struct.Message{author: %{bot: nil} = author}
+         }, _ws_state}
+      )
+      when channel_id in @intro_channels do
+    handle_deleted_intro(guild_id, channel_id, author)
+  end
+
   # members who find their intro wasn't counted often edit it, so an edit
   # that makes it count moves them to Intro. discord also sends an edit when
-  # it adds a link preview, and we don't keep the old message to compare, so
-  # edits never log, or each one could ping helpers again
+  # it adds a link preview, and the old message is only in nostrum's cache
+  # while it's recent, so we can't always tell what changed; edits never log,
+  # or each one could ping helpers again
   def handle_event(
         {:MESSAGE_UPDATE,
          {_old_message,
@@ -346,6 +363,34 @@ defmodule DopaTeam.Consumer do
       Logger.warning("Ready event: registering commands for guild id: #{inspect(guild_id)}")
       discord().bulk_overwrite_guild_application_commands(guild_id, @command_list)
     end)
+  end
+
+  # helpers hear about a member who keeps an intro role after their intro
+  # is gone; staff clean up the channel, so their messages don't count
+  @spec handle_deleted_intro(Nostrum.Struct.Guild.id(), Nostrum.Struct.Channel.id(), User.t()) ::
+          term()
+  defp handle_deleted_intro(guild_id, channel_id, %User{} = author) do
+    server_roles = get_server_roles(guild_id)
+
+    intro_role_ids =
+      Enum.flat_map([@intro_role_name, @access_role_name], &optional_role_ids(server_roles, &1))
+
+    # someone who left or was banned has no roles to keep
+    with {:ok, %Member{roles: roles}} <- discord().get_guild_member(guild_id, author.id),
+         has_intro_role = Enum.any?(roles, &(&1 in intro_role_ids)),
+         is_staff = staff?(server_roles, roles),
+         Logger.warning(
+           "deleted intro from userid: #{author.id}, has intro or access?:#{has_intro_role}, staff?:#{is_staff}"
+         ),
+         true <- has_intro_role and not is_staff do
+      log_general_event(
+        guild_id,
+        helpers_mention(server_roles) <>
+          "The intro from #{author.username} (user id #{author.id}) in <##{channel_id}> " <>
+          "was deleted, and they still have Intro or Access " <>
+          "(note: this may be a moderation action or the removal of a double intro)"
+      )
+    end
   end
 
   defp handle_intro_message(
