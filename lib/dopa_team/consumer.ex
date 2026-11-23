@@ -40,21 +40,21 @@ defmodule DopaTeam.Consumer do
   # the channel is where we want dm audit logging to go to
   @logging_channel %{
     @live_guild_id => 1_160_606_680_741_056_652,
-    @bot_test_guild_id => 964_397_371_666_604_076
+    @bot_test_guild_id => 1_176_811_720_837_185_577
   }
 
   @vc_status_logging_channel %{
     @live_guild_id => 1_160_011_672_170_287_196,
-    @bot_test_guild_id => 1_163_155_790_014_717_975
+    @bot_test_guild_id => 1_176_811_720_837_185_585
   }
 
   # channels for dm asking
   @live_dm_asking_channel 1_160_011_669_003_587_584
-  @bot_test_dm_asking_channel 964_397_371_666_604_079
+  @bot_test_dm_asking_channel 1_176_811_718_496_763_955
 
   # channels for intro
   @live_intro_channel 1_160_011_668_500_250_734
-  @bot_test_intro_channel 964_397_371_314_274_342
+  @bot_test_intro_channel 1_176_811_718_769_397_818
 
   # channels we are listening to
   @dm_channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
