@@ -47,6 +47,43 @@ defmodule DopaTeam.ConsumerIntroTest do
     Consumer.handle_event({:MESSAGE_CREATE, message, nil})
   end
 
+  # discord sends the whole edited message; nostrum pairs it with the old
+  # one from its message cache, which the bot doesn't keep
+  defp edit(author_roles, content) do
+    message = %Message{
+      id: 400,
+      author: %User{id: @author_id, bot: nil},
+      guild_id: @guild_id,
+      channel_id: @intro_channel_id,
+      member: %Member{roles: author_roles},
+      content: content
+    }
+
+    Consumer.handle_event({:MESSAGE_UPDATE, {nil, message}, nil})
+  end
+
+  test "a No Intro member who edits a one word message into an intro gets Intro" do
+    expect(DiscordMock, :modify_guild_member, fn @guild_id, @author_id, options ->
+      assert Enum.sort(options[:roles]) == [@intro_role, @adult_role]
+      {:ok, %Member{user_id: @author_id}}
+    end)
+
+    edit([@no_intro_role, @rules_role, @adult_role], "hi, i'm new here")
+  end
+
+  test "an edit that is still one word is not logged again" do
+    expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+    expect(DiscordMock, :modify_guild_member, 0, fn _guild_id, _user_id, _options -> :ok end)
+
+    edit([@no_intro_role], "hello")
+  end
+
+  test "an edit from a member with none of the intro roles is not flagged again" do
+    expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+    edit([@adult_role], "hi, i'm new here, see https://example.com")
+  end
+
   test "a No Intro member who posts an intro gets Intro and loses No Intro and Rules" do
     expect(DiscordMock, :modify_guild_member, fn @guild_id, @author_id, options ->
       assert Enum.sort(options[:roles]) == [@intro_role, @adult_role]

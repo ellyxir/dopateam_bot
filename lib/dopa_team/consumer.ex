@@ -3,12 +3,13 @@ defmodule DopaTeam.Consumer do
   Handles Discord gateway events for the bot.
 
   It registers the `/water` and `/intro-report` slash commands, moves
-  members from "No Intro" to "Intro" when they post an introduction, flags
-  in the general log an introduction from a member with none of Intro,
-  Access and No Intro, logs one word introductions it doesn't count, removes
-  dm requests that mention Closed DM members or that mention minors and come
-  from anyone but a minor, and logs voice channel status changes. Admins, MOD
-  and Helpers are exempt from the dm request check.
+  members from "No Intro" to "Intro" when they post an introduction or edit
+  one into shape, flags in the general log an introduction from a member
+  with none of Intro, Access and No Intro, logs one word introductions it
+  doesn't count, removes dm requests that mention Closed DM members or that
+  mention minors and come from anyone but a minor, and logs voice channel
+  status changes. Admins, MOD and Helpers are exempt from the dm request
+  check.
   """
 
   use Nostrum.Consumer
@@ -154,7 +155,27 @@ defmodule DopaTeam.Consumer do
          } = _original_message, _ws_state}
       )
       when channel_id in @intro_channels and is_nil(is_bot) do
-    handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content)
+    handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content, :post)
+  end
+
+  # members who find their intro wasn't counted often edit it, so an edit
+  # that makes it count moves them to Intro. discord also sends an edit when
+  # it adds a link preview, and we don't keep the old message to compare, so
+  # edits never log, or each one could ping helpers again
+  def handle_event(
+        {:MESSAGE_UPDATE,
+         {_old_message,
+          %Nostrum.Struct.Message{
+            id: msg_id,
+            author: %{id: author_id, bot: is_bot},
+            guild_id: guild_id,
+            channel_id: channel_id,
+            member: %{roles: author_role_ids},
+            content: content
+          }}, _ws_state}
+      )
+      when channel_id in @intro_channels and is_nil(is_bot) do
+    handle_intro_message(guild_id, channel_id, msg_id, author_id, author_role_ids, content, :edit)
   end
 
   def handle_event(
@@ -333,7 +354,8 @@ defmodule DopaTeam.Consumer do
          msg_id,
          author_id,
          author_role_ids,
-         msg_content
+         msg_content,
+         post_or_edit
        )
        when channel_id in @intro_channels do
     # logic: does msg_content have at least a space
@@ -368,6 +390,10 @@ defmodule DopaTeam.Consumer do
           modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [
             no_intro_role_id | rules_role_ids
           ])
+
+      # edits only ever move a member to Intro, see the MESSAGE_UPDATE clause
+      post_or_edit == :edit ->
+        :ok
 
       # the bot that hands out No Intro missed them, so staff should sort
       # out their roles
