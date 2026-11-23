@@ -43,9 +43,22 @@ defmodule DopaTeam.ConsumerIntroReportTest do
   test "/intro-report offers a choice of which members to list" do
     expect(DiscordMock, :bulk_overwrite_guild_application_commands, fn @guild_id, commands ->
       command = Enum.find(commands, &(&1.name == "intro-report"))
-      assert [%{name: "group", required: false, choices: choices}] = command.options
+      assert [%{name: "group", required: false, choices: choices} | _more] = command.options
 
       assert Enum.map(choices, & &1.value) == ["no_intro", "without_intro_roles"]
+      {:ok, []}
+    end)
+
+    Consumer.handle_event({:READY, %Ready{guilds: [%UnavailableGuild{id: @guild_id}]}, nil})
+  end
+
+  test "/intro-report takes an optional whole number of months members joined by" do
+    expect(DiscordMock, :bulk_overwrite_guild_application_commands, fn @guild_id, commands ->
+      command = Enum.find(commands, &(&1.name == "intro-report"))
+      option = Enum.find(command.options, &(&1.name == "joined_months_ago"))
+
+      # INTEGER, see "Application Command Option Type" in the Discord API docs
+      assert %{type: 4, required: false, min_value: 1} = option
       {:ok, []}
     end)
 

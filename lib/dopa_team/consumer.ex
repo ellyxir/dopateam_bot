@@ -111,6 +111,14 @@ defmodule DopaTeam.Consumer do
             %{name: "No Intro role", value: "no_intro"},
             %{name: "Neither Intro nor No Intro", value: "without_intro_roles"}
           ]
+        },
+        %{
+          # INTEGER, see "Application Command Option Type" in Discord API
+          type: 4,
+          name: "joined_months_ago",
+          description: "Only list members who joined at least this many months ago",
+          required: false,
+          min_value: 1
         }
       ]
     }

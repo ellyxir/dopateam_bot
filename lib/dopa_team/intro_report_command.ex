@@ -16,10 +16,6 @@ defmodule DopaTeam.IntroReportCommand do
   @update_message 7
   @ephemeral 64
 
-  # a report page: the report's id, which members it lists, and the page
-  @typep page_ref() ::
-           {IntroReportPage.report_id(), IntroReportPage.group(), IntroReportPage.page_number()}
-
   @typedoc "options for `handle/2`"
   @type option() :: {:task_supervisor, atom()} | {:store, atom()}
 
@@ -50,7 +46,11 @@ defmodule DopaTeam.IntroReportCommand do
       store = Keyword.get(options, :store, ReportStore)
 
       Task.Supervisor.start_child(task_supervisor, fn ->
-        build_and_reply(interaction, store, {interaction.id, group(interaction), 1})
+        build_and_reply(
+          interaction,
+          store,
+          {interaction.id, group(interaction), months(interaction), 1}
+        )
       end)
     else
       discord().create_interaction_response(interaction, %{
@@ -79,15 +79,15 @@ defmodule DopaTeam.IntroReportCommand do
 
   @spec show_page(
           Interaction.t(),
-          page_ref(),
+          IntroReportPage.page_ref(),
           [option()]
         ) :: term()
-  defp show_page(interaction, {report_id, group, page_number} = page, options) do
+  defp show_page(interaction, {report_id, _group, _months, _page_number} = page, options) do
     store = Keyword.get(options, :store, ReportStore)
 
     case ReportStore.fetch(store, report_id) do
       {:ok, report} ->
-        update_message(interaction, IntroReportPage.render(report_id, report, group, page_number))
+        update_message(interaction, IntroReportPage.render(report, page, Date.utc_today()))
 
       # the report expired or was lost in a restart
       :error ->
@@ -101,7 +101,7 @@ defmodule DopaTeam.IntroReportCommand do
   @spec rebuild(
           Interaction.t(),
           atom(),
-          page_ref(),
+          IntroReportPage.page_ref(),
           [option()]
         ) :: term()
   defp rebuild(interaction, store, page, options) do
@@ -139,12 +139,23 @@ defmodule DopaTeam.IntroReportCommand do
 
   defp group(%Interaction{}), do: :no_intro
 
+  # how many months ago members must have joined by to be listed, 0 for all
+  @spec months(Interaction.t()) :: IntroReportPage.months()
+  defp months(%Interaction{data: %{options: options}}) do
+    case Consumer.get_option(options, "joined_months_ago", 0) do
+      months when is_integer(months) and months >= 0 -> months
+      _other -> 0
+    end
+  end
+
+  defp months(%Interaction{}), do: 0
+
   # whatever happens while building, the deferred reply gets edited, so staff
   # aren't left on "thinking"
   @spec build_and_reply(
           Interaction.t(),
           atom(),
-          page_ref()
+          IntroReportPage.page_ref()
         ) :: :ok
   defp build_and_reply(interaction, store, page) do
     reply =
@@ -170,15 +181,15 @@ defmodule DopaTeam.IntroReportCommand do
   @spec build_and_store(
           Interaction.t(),
           atom(),
-          page_ref()
+          IntroReportPage.page_ref()
         ) :: map()
-  defp build_and_store(interaction, store, {report_id, group, page_number}) do
+  defp build_and_store(interaction, store, {report_id, _group, _months, _page_number} = page) do
     case MemberReport.build(interaction.guild_id) do
       {:ok, report} ->
         :ok = ReportStore.put(store, report_id, report)
 
-        report_id
-        |> IntroReportPage.render(report, group, page_number)
+        report
+        |> IntroReportPage.render(page, Date.utc_today())
         |> Map.put(:content, MemberReport.summary(report))
 
       error ->

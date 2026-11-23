@@ -74,7 +74,7 @@ defmodule DopaTeam.ConsumerIntroReportStaffTest do
       type: 3,
       guild_id: @guild_id,
       member: %Member{roles: [@mod_role]},
-      data: %ApplicationCommandInteractionData{custom_id: "intro-report:next:900:no_intro:2"}
+      data: %ApplicationCommandInteractionData{custom_id: "intro-report:next:900:no_intro:0:2"}
     }
 
     Consumer.handle_event({:INTERACTION_CREATE, interaction, nil})

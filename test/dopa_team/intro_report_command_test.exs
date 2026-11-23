@@ -214,6 +214,42 @@ defmodule DopaTeam.IntroReportCommandTest do
     assert embed.footer.text =~ "1 with neither Intro nor No Intro"
   end
 
+  test "the joined_months_ago option lists only members who joined by then", context do
+    test_pid = self()
+    task_supervisor = Module.concat(__MODULE__, "Tasks#{context.line}")
+    store = Module.concat(__MODULE__, "Store#{context.line}")
+    start_supervised!({Task.Supervisor, name: task_supervisor})
+    start_supervised!({ReportStore, name: store})
+
+    stub(DiscordMock, :create_interaction_response, fn _interaction, _response -> {:ok} end)
+
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+      long_ago = DateTime.to_unix(~U[2020-01-01 00:00:00Z])
+      {:ok, [guild_member(10, roles: [1], joined_at: long_ago), guild_member(11, roles: [1])]}
+    end)
+
+    expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 900}, response ->
+      send(test_pid, {:edited, response})
+      {:ok, %Message{id: 901}}
+    end)
+
+    option = %Nostrum.Struct.ApplicationCommandInteractionDataOption{
+      name: "joined_months_ago",
+      value: 3
+    }
+
+    interaction = %{
+      interaction([@mod_role])
+      | data: %ApplicationCommandInteractionData{name: "intro-report", options: [option]}
+    }
+
+    IntroReportCommand.handle(interaction, task_supervisor: task_supervisor, store: store)
+
+    assert_receive {:edited, %{embeds: [embed]}}
+    assert embed.description =~ "<@10>"
+    refute embed.description =~ "<@11>"
+  end
+
   describe "page buttons" do
     setup context do
       store = Module.concat(__MODULE__, "Store#{context.line}")
@@ -254,7 +290,7 @@ defmodule DopaTeam.IntroReportCommandTest do
 
       expect(DiscordMock, :list_guild_members, 0, fn _guild_id, _options -> {:ok, []} end)
 
-      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:0:2"),
         store: context.store,
         task_supervisor: context.task_supervisor
       )
@@ -265,13 +301,13 @@ defmodule DopaTeam.IntroReportCommandTest do
 
       log =
         capture_log(fn ->
-          IntroReportCommand.handle_button(click("intro-report:next:900:everyone:2"),
+          IntroReportCommand.handle_button(click("intro-report:next:900:everyone:0:2"),
             store: context.store,
             task_supervisor: context.task_supervisor
           )
         end)
 
-      assert log =~ "intro-report:next:900:everyone:2"
+      assert log =~ "intro-report:next:900:everyone:0:2"
     end
 
     test "a page change discord rejects is logged", context do
@@ -284,7 +320,7 @@ defmodule DopaTeam.IntroReportCommandTest do
 
       log =
         capture_log(fn ->
-          IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+          IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:0:2"),
             store: context.store,
             task_supervisor: context.task_supervisor
           )
@@ -303,7 +339,7 @@ defmodule DopaTeam.IntroReportCommandTest do
       log =
         capture_log(fn ->
           result =
-            IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+            IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:0:2"),
               store: context.store,
               task_supervisor: context.task_supervisor
             )
@@ -337,7 +373,7 @@ defmodule DopaTeam.IntroReportCommandTest do
         {:ok, %Message{id: 901}}
       end)
 
-      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:2"),
+      IntroReportCommand.handle_button(click("intro-report:next:900:no_intro:0:2"),
         store: context.store,
         task_supervisor: context.task_supervisor
       )
