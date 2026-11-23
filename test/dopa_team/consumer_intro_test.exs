@@ -56,8 +56,15 @@ defmodule DopaTeam.ConsumerIntroTest do
     intro([@no_intro_role, @rules_role, @adult_role], "hi, i'm new here")
   end
 
-  test "a one word message does not count as an intro" do
+  test "a one word message does not count as an intro, and is logged without pinging anyone" do
     expect(DiscordMock, :modify_guild_member, 0, fn _guild_id, _user_id, _options -> :ok end)
+
+    expect(DiscordMock, :create_message, fn @general_log_channel_id, content ->
+      assert content =~ "<@#{@author_id}>"
+      assert content =~ "https://discord.com/channels/#{@guild_id}/#{@intro_channel_id}/400"
+      refute content =~ "<@&"
+      {:ok, %Message{id: 401}}
+    end)
 
     intro([@no_intro_role, @rules_role], "hi")
   end
@@ -116,10 +123,30 @@ defmodule DopaTeam.ConsumerIntroTest do
     intro([5], "hi, i'm new here")
   end
 
-  test "a one word message from a member with neither intro role is not flagged" do
-    expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+  test "a one word message from a member with neither intro role is logged without pinging helpers" do
+    stub(DiscordMock, :get_guild_roles, fn @guild_id ->
+      {:ok,
+       [
+         %Role{id: @no_intro_role, name: "No Intro"},
+         %Role{id: @intro_role, name: "Intro"},
+         %Role{id: @rules_role, name: "Rules"},
+         %Role{id: 7, name: "Helpers"}
+       ]}
+    end)
+
+    expect(DiscordMock, :create_message, fn @general_log_channel_id, content ->
+      assert content =~ "wasn't counted"
+      refute content =~ "<@&7>"
+      {:ok, %Message{id: 401}}
+    end)
 
     intro([@adult_role], "hi")
+  end
+
+  test "a one word message from a member with Intro is not logged" do
+    expect(DiscordMock, :create_message, 0, fn _channel_id, _content -> :ok end)
+
+    intro([@intro_role], "welcome!")
   end
 
   test "a server without a Rules role still moves a No Intro member to Intro" do

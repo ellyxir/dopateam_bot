@@ -5,7 +5,7 @@ defmodule DopaTeam.Consumer do
   It registers the `/water` and `/intro-report` slash commands, moves
   members from "No Intro" to "Intro" when they post an introduction, flags
   in the general log an introduction from a member with none of Intro,
-  Access and No Intro, removes
+  Access and No Intro, logs one word introductions it doesn't count, removes
   dm requests that mention Closed DM members or that mention minors and come
   from anyone but a minor, and logs voice channel status changes. Admins, MOD
   and Helpers are exempt from the dm request check.
@@ -372,18 +372,21 @@ defmodule DopaTeam.Consumer do
       # the bot that hands out No Intro missed them, so staff should sort
       # out their roles
       not has_intro_role && msg_has_space ->
-        # an empty string where the server has no Helpers role
-        helpers =
-          server_roles
-          |> optional_role_ids(@helper_role_name)
-          |> Enum.map_join(&"<@&#{&1}> ")
-
         log_general_event(
           guild_id,
-          helpers <>
+          helpers_mention(server_roles) <>
             "Intro posted by <@#{author_id}> (user id #{author_id}), who has none of " <>
             "Intro, Access or No Intro, so we didn't change their roles: " <>
-            "https://discord.com/channels/#{guild_id}/#{channel_id}/#{msg_id}"
+            message_link(guild_id, channel_id, msg_id)
+        )
+
+      # someone who still needs an intro posted one word, which we don't
+      # count; staff can check the log if they ask why
+      is_user_no_intro || not has_intro_role ->
+        log_general_event(
+          guild_id,
+          "Intro from <@#{author_id}> (user id #{author_id}) wasn't counted, " <>
+            "as it has no space: " <> message_link(guild_id, channel_id, msg_id)
         )
 
       true ->
@@ -499,6 +502,24 @@ defmodule DopaTeam.Consumer do
         Logger.warning("no channel for dm-asking logging configured for guild id #{guild_id}")
     end
   end
+
+  # a mention of the server's Helpers role, or an empty string where the
+  # server has none
+  @spec helpers_mention([Nostrum.Struct.Guild.Role.t()]) :: String.t()
+  defp helpers_mention(server_roles) do
+    server_roles
+    |> optional_role_ids(@helper_role_name)
+    |> Enum.map_join(&"<@&#{&1}> ")
+  end
+
+  @spec message_link(
+          Nostrum.Struct.Guild.id(),
+          Nostrum.Struct.Channel.id(),
+          Nostrum.Struct.Message.id()
+        ) ::
+          String.t()
+  defp message_link(guild_id, channel_id, msg_id),
+    do: "https://discord.com/channels/#{guild_id}/#{channel_id}/#{msg_id}"
 
   # the id of a role the server may not have, in a list that's empty when
   # it doesn't
