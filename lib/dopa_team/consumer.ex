@@ -3,7 +3,9 @@ defmodule DopaTeam.Consumer do
   Handles Discord gateway events for the bot.
 
   It registers the `/water` and `/intro-report` slash commands, moves
-  members from "No Intro" to "Intro" when they post an introduction, removes
+  members from "No Intro" to "Intro" when they post an introduction, flags
+  in the general log an introduction from a member with none of Intro,
+  Access and No Intro, removes
   dm requests that mention Closed DM members or that mention minors and come
   from anyone but a minor, and logs voice channel status changes. Admins, MOD
   and Helpers are exempt from the dm request check.
@@ -36,11 +38,19 @@ defmodule DopaTeam.Consumer do
   # the discord server ids
   @live_guild_id 1_160_011_667_204_231_300
   @bot_test_guild_id 1_176_811_717_213_306_880
+  @bot_test_2_guild_id 1_163_155_786_562_814_092
 
   # the channel is where we want dm audit logging to go to
   @logging_channel %{
     @live_guild_id => 1_160_606_680_741_056_652,
     @bot_test_guild_id => 1_176_811_720_837_185_577
+  }
+
+  # where we flag things for staff that have no channel of their own
+  @general_logging_channel %{
+    @live_guild_id => 1_160_011_671_515_971_619,
+    @bot_test_guild_id => 1_176_811_720_631_660_602,
+    @bot_test_2_guild_id => 1_163_155_789_733_695_554
   }
 
   @vc_status_logging_channel %{
@@ -55,10 +65,11 @@ defmodule DopaTeam.Consumer do
   # channels for intro
   @live_intro_channel 1_160_011_668_500_250_734
   @bot_test_intro_channel 1_176_811_718_769_397_818
+  @bot_test_2_intro_channel 1_163_155_787_598_807_145
 
   # channels we are listening to
   @dm_channels [@live_dm_asking_channel, @bot_test_dm_asking_channel]
-  @intro_channels [@live_intro_channel, @bot_test_intro_channel]
+  @intro_channels [@live_intro_channel, @bot_test_intro_channel, @bot_test_2_intro_channel]
 
   # roles we care about, this needs to match the role name exactly in the server
   @adult_role_18_name "18+"
@@ -68,6 +79,8 @@ defmodule DopaTeam.Consumer do
   @closed_dm_role_name "Closed DM"
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
+  # counts as having done an intro; not every server has it
+  @access_role_name "Access"
   @rules_role_name "Rules"
   @admin_role_name "Admins"
   @mod_role_name "MOD"
@@ -317,7 +330,7 @@ defmodule DopaTeam.Consumer do
   defp handle_intro_message(
          guild_id,
          channel_id,
-         _msg_id,
+         msg_id,
          author_id,
          author_role_ids,
          msg_content
@@ -342,12 +355,38 @@ defmodule DopaTeam.Consumer do
       "intro message from userid: #{author_id}, is user no intro?:#{inspect(is_user_no_intro)}, msg space?:#{inspect(msg_has_space)}"
     )
 
-    if is_user_no_intro && msg_has_space do
-      {:ok, _updated_member} =
-        modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [
-          no_intro_role_id,
-          rules_role_id
-        ])
+    intro_role_ids =
+      [no_intro_role_id, intro_role_id | optional_role_ids(server_roles, @access_role_name)]
+
+    has_intro_role = Enum.any?(author_role_ids, &(&1 in intro_role_ids))
+
+    cond do
+      is_user_no_intro && msg_has_space ->
+        {:ok, _updated_member} =
+          modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [
+            no_intro_role_id,
+            rules_role_id
+          ])
+
+      # the bot that hands out No Intro missed them, so staff should sort
+      # out their roles
+      not has_intro_role && msg_has_space ->
+        # an empty string where the server has no Helpers role
+        helpers =
+          server_roles
+          |> optional_role_ids(@helper_role_name)
+          |> Enum.map_join(&"<@&#{&1}> ")
+
+        log_general_event(
+          guild_id,
+          helpers <>
+            "Intro posted by <@#{author_id}> (user id #{author_id}), who has none of " <>
+            "Intro, Access or No Intro, so we didn't change their roles: " <>
+            "https://discord.com/channels/#{guild_id}/#{channel_id}/#{msg_id}"
+        )
+
+      true ->
+        :ok
     end
   end
 
@@ -457,6 +496,29 @@ defmodule DopaTeam.Consumer do
 
       :error ->
         Logger.warning("no channel for dm-asking logging configured for guild id #{guild_id}")
+    end
+  end
+
+  # the id of a role the server may not have, in a list that's empty when
+  # it doesn't
+  @spec optional_role_ids([Nostrum.Struct.Guild.Role.t()], String.t()) :: [
+          Nostrum.Struct.Guild.Role.id()
+        ]
+  defp optional_role_ids(server_roles, role_name) do
+    case get_role_id_by_name(server_roles, role_name) do
+      {:ok, role_id} -> [role_id]
+      {:error, _not_found} -> []
+    end
+  end
+
+  @spec log_general_event(Nostrum.Struct.Guild.id(), log_message()) :: any()
+  defp log_general_event(guild_id, log_message) do
+    case Map.fetch(@general_logging_channel, guild_id) do
+      {:ok, channel_id} ->
+        discord().create_message(channel_id, log_message)
+
+      :error ->
+        Logger.warning("no channel for general logging configured for guild id #{guild_id}")
     end
   end
 
