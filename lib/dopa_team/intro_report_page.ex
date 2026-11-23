@@ -39,11 +39,14 @@ defmodule DopaTeam.IntroReportPage do
     # a rebuilt report can have fewer pages than the button expected
     page_number = min(page_number, page_count)
 
+    first = (page_number - 1) * @per_page
+
     lines =
       members
-      |> Enum.drop((page_number - 1) * @per_page)
+      |> Enum.drop(first)
       |> Enum.take(@per_page)
-      |> Enum.map(&line/1)
+      |> Enum.with_index(first + 1)
+      |> Enum.map(fn {member, number} -> line(number, member) end)
 
     %{
       embeds: [
@@ -111,9 +114,16 @@ defmodule DopaTeam.IntroReportPage do
   defp label(:no_intro), do: "with No Intro"
   defp label(:without_intro_roles), do: "with neither Intro nor No Intro"
 
-  @spec line(GuildMember.t()) :: String.t()
-  defp line(%GuildMember{} = member),
-    do: "<@#{member.user_id}> · joined #{joined(member.joined_at)}"
+  # the username shows even where discord can't turn the mention into a name
+  @spec line(pos_integer(), GuildMember.t()) :: String.t()
+  defp line(number, %GuildMember{} = member) do
+    "#{number}. #{escape(member.username)} · <@#{member.user_id}> · joined #{joined(member.joined_at)}"
+  end
+
+  # usernames can hold underscores, which discord's markdown reads as
+  # italics; letters, digits and dots are the only other characters allowed
+  @spec escape(String.t()) :: String.t()
+  defp escape(username), do: String.replace(username, "_", "\\_")
 
   # discord can leave out a member's join date
   @spec joined(GuildMember.joined_at()) :: String.t()

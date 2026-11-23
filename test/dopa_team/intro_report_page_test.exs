@@ -26,9 +26,27 @@ defmodule DopaTeam.IntroReportPageTest do
     lines = String.split(embed.description, "\n")
 
     assert length(lines) == 25
-    assert hd(lines) == "<@1001> · joined 2026-01-02"
-    assert List.last(lines) == "<@1025> · joined 2026-01-26"
+    assert hd(lines) == "1. user1001 · <@1001> · joined 2026-01-02"
+    assert List.last(lines) == "25. user1025 · <@1025> · joined 2026-01-26"
     assert embed.footer.text == "Page 1 of 2 · 30 with No Intro"
+  end
+
+  test "numbering carries on from the page before" do
+    page = IntroReportPage.render(7, report(members(30)), :no_intro, 2)
+
+    [embed] = page.embeds
+
+    assert hd(String.split(embed.description, "\n")) ==
+             "26. user1026 · <@1026> · joined 2026-01-27"
+  end
+
+  test "underscores in a username show as written, not as italics" do
+    member = guild_member(5, username: "_some_name_", joined_at: @new_year)
+
+    page = IntroReportPage.render(7, report([member]), :no_intro, 1)
+
+    [embed] = page.embeds
+    assert embed.description == "1. \\_some\\_name\\_ · <@5> · joined 2026-01-01"
   end
 
   test "a member with no join date is listed last, as joined unknown" do
@@ -37,9 +55,9 @@ defmodule DopaTeam.IntroReportPageTest do
     [embed] = page.embeds
 
     assert String.split(embed.description, "\n") == [
-             "<@1001> · joined 2026-01-02",
-             "<@1002> · joined 2026-01-03",
-             "<@999> · joined unknown"
+             "1. user1001 · <@1001> · joined 2026-01-02",
+             "2. user1002 · <@1002> · joined 2026-01-03",
+             "3. user999 · <@999> · joined unknown"
            ]
   end
 

@@ -82,7 +82,7 @@ defmodule DopaTeam.IntroReportCommandTest do
 
     assert_receive {:edited, %{content: content, embeds: [embed], components: [_buttons]}}
     assert content == "3 members, 1 with No Intro, 1 with neither Intro nor No Intro"
-    assert embed.description == "<@10> · joined 2026-01-01"
+    assert embed.description == "1. user10 · <@10> · joined 2026-01-01"
     assert embed.footer.text == "Page 1 of 1 · 1 with No Intro"
     assert {:ok, %MemberReport{member_count: 3}} = ReportStore.fetch(store, 900)
   end
