@@ -121,4 +121,17 @@ defmodule DopaTeam.ConsumerIntroTest do
 
     intro([@adult_role], "hi")
   end
+
+  test "a server without a Rules role still moves a No Intro member to Intro" do
+    stub(DiscordMock, :get_guild_roles, fn @guild_id ->
+      {:ok, [%Role{id: @no_intro_role, name: "No Intro"}, %Role{id: @intro_role, name: "Intro"}]}
+    end)
+
+    expect(DiscordMock, :modify_guild_member, fn @guild_id, @author_id, options ->
+      assert options[:roles] == [@intro_role]
+      {:ok, %Member{user_id: @author_id}}
+    end)
+
+    intro([@no_intro_role], "hi, i'm new here")
+  end
 end

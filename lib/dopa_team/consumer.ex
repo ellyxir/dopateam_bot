@@ -342,10 +342,12 @@ defmodule DopaTeam.Consumer do
     server_roles = get_server_roles(guild_id)
     {:ok, no_intro_role_id} = get_role_id_by_name(server_roles, @no_intro_role_name)
     {:ok, intro_role_id} = get_role_id_by_name(server_roles, @intro_role_name)
-    {:ok, rules_role_id} = get_role_id_by_name(server_roles, @rules_role_name)
+    # not every server has a Rules role; where it's missing there's nothing
+    # to take away
+    rules_role_ids = optional_role_ids(server_roles, @rules_role_name)
 
     Logger.warning(
-      "Role IDs resolved - no_intro: #{inspect(no_intro_role_id)}, intro: #{inspect(intro_role_id)}, rules: #{inspect(rules_role_id)}"
+      "Role IDs resolved - no_intro: #{inspect(no_intro_role_id)}, intro: #{inspect(intro_role_id)}, rules: #{inspect(rules_role_ids)}"
     )
 
     is_user_no_intro = Enum.member?(author_role_ids, no_intro_role_id)
@@ -364,8 +366,7 @@ defmodule DopaTeam.Consumer do
       is_user_no_intro && msg_has_space ->
         {:ok, _updated_member} =
           modify_roles(guild_id, author_id, author_role_ids, [intro_role_id], [
-            no_intro_role_id,
-            rules_role_id
+            no_intro_role_id | rules_role_ids
           ])
 
       # the bot that hands out No Intro missed them, so staff should sort
