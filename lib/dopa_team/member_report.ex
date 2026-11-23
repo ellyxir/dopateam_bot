@@ -5,10 +5,9 @@ defmodule DopaTeam.MemberReport do
   It only reads: it sends no messages and changes no roles.
   """
 
-  require Logger
-
-  alias Nostrum.Struct.{Guild, User}
-  alias Nostrum.Struct.Guild.{Member, Role}
+  alias DopaTeam.Discord.GuildMember
+  alias Nostrum.Struct.Guild
+  alias Nostrum.Struct.Guild.Role
 
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
@@ -23,8 +22,8 @@ defmodule DopaTeam.MemberReport do
   """
   @type t() :: %__MODULE__{
           member_count: non_neg_integer(),
-          no_intro: [Member.t()],
-          without_intro_roles: [Member.t()]
+          no_intro: [GuildMember.t()],
+          without_intro_roles: [GuildMember.t()]
         }
 
   @doc "the report's counts, in a line of text"
@@ -53,9 +52,10 @@ defmodule DopaTeam.MemberReport do
          {:ok, intro_role_id} <- role_id(roles, @intro_role_name),
          {:ok, members} <- fetch_members(guild_id, page_size, 0, []) do
       without_intro_roles =
-        members
-        |> Enum.reject(&(no_intro_role_id in &1.roles or intro_role_id in &1.roles))
-        |> reject_bots()
+        Enum.reject(
+          members,
+          &(&1.bot? or no_intro_role_id in &1.roles or intro_role_id in &1.roles)
+        )
 
       {:ok,
        %__MODULE__{
@@ -68,8 +68,8 @@ defmodule DopaTeam.MemberReport do
 
   # discord pages members by user id: each page holds the members whose ids
   # come after the last id of the page before; a short page is the last one
-  @spec fetch_members(Guild.id(), pos_integer(), non_neg_integer(), [[Member.t()]]) ::
-          {:ok, [Member.t()]} | DopaTeam.Discord.error()
+  @spec fetch_members(Guild.id(), pos_integer(), non_neg_integer(), [[GuildMember.t()]]) ::
+          {:ok, [GuildMember.t()]} | DopaTeam.Discord.error()
   defp fetch_members(guild_id, page_size, after_id, pages) do
     case discord().list_guild_members(guild_id, limit: page_size, after: after_id) do
       {:ok, page} when length(page) < page_size ->
@@ -81,30 +81,6 @@ defmodule DopaTeam.MemberReport do
       error ->
         error
     end
-  end
-
-  # nostrum's member list drops each member's user, so it doesn't say who
-  # is a bot; we look up each user, but only for members with neither intro
-  # role, as bots never get one. a member whose lookup fails is left out and
-  # logged, so one failed call doesn't lose the whole report
-  @spec reject_bots([Member.t()]) :: [Member.t()]
-  defp reject_bots(members) do
-    Enum.filter(members, fn member ->
-      case discord().get_user(member.user_id) do
-        {:ok, %User{bot: true}} ->
-          false
-
-        {:ok, %User{}} ->
-          true
-
-        error ->
-          Logger.warning(
-            "member report: left out user #{member.user_id}, bot lookup failed: #{inspect(error)}"
-          )
-
-          false
-      end
-    end)
   end
 
   @spec role_id([Role.t()], String.t()) ::

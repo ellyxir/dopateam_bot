@@ -1,8 +1,9 @@
 defmodule DopaTeam.IntroReportPageTest do
   use ExUnit.Case, async: true
 
+  import DopaTeam.Factory
+
   alias DopaTeam.{IntroReportPage, MemberReport}
-  alias Nostrum.Struct.Guild.Member
 
   # 2026-01-01 00:00:00 UTC
   @new_year 1_767_225_600
@@ -11,7 +12,7 @@ defmodule DopaTeam.IntroReportPageTest do
   # members who joined a day apart, listed newest first so the page has to
   # sort them
   defp members(count) do
-    for n <- count..1//-1, do: %Member{user_id: 1000 + n, joined_at: @new_year + n * @day}
+    for n <- count..1//-1, do: guild_member(1000 + n, joined_at: @new_year + n * @day)
   end
 
   defp report(no_intro) do
@@ -31,7 +32,7 @@ defmodule DopaTeam.IntroReportPageTest do
   end
 
   test "a member with no join date is listed last, as joined unknown" do
-    page = IntroReportPage.render(7, report([%Member{user_id: 999} | members(2)]), :no_intro, 1)
+    page = IntroReportPage.render(7, report([guild_member(999) | members(2)]), :no_intro, 1)
 
     [embed] = page.embeds
 

@@ -5,13 +5,18 @@ defmodule DopaTeam.MixProject do
     [
       app: :dopa_team,
       version: "0.1.0",
-      elixir: "~> 1.14",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       aliases: aliases(),
       dialyzer: [plt_add_apps: [:mix]]
     ]
   end
+
+  # test/support holds helpers only the tests use
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
 
   # tests call the consumer directly, so they don't start the app; a
   # started nostrum would log in to discord as the dev bot

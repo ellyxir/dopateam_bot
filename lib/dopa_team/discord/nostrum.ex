@@ -6,6 +6,7 @@ defmodule DopaTeam.Discord.Nostrum do
 
   @behaviour DopaTeam.Discord
 
+  alias DopaTeam.Discord.GuildMember
   alias Nostrum.Api.{ApplicationCommand, Channel, Guild, Interaction, Message, User}
 
   @impl true
@@ -44,8 +45,15 @@ defmodule DopaTeam.Discord.Nostrum do
   @impl true
   defdelegate get_user(user_id), to: User, as: :get
 
+  # nostrum's `Guild.members/2` drops each member's user, so we make the
+  # same request and read the json ourselves
   @impl true
-  defdelegate list_guild_members(guild_id, options), to: Guild, as: :members
+  def list_guild_members(guild_id, options) do
+    with {:ok, body} <-
+           Nostrum.Api.request(:get, Nostrum.Constants.guild_members(guild_id), "", options) do
+      {:ok, body |> JSON.decode!() |> Enum.map(&GuildMember.from_json/1)}
+    end
+  end
 
   @impl true
   defdelegate modify_guild_member(guild_id, user_id, options), to: Guild, as: :modify_member

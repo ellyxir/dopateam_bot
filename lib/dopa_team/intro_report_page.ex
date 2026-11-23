@@ -5,9 +5,9 @@ defmodule DopaTeam.IntroReportPage do
   It only builds message data; it makes no Discord calls.
   """
 
+  alias DopaTeam.Discord.GuildMember
   alias DopaTeam.MemberReport
   alias Nostrum.Struct.Embed
-  alias Nostrum.Struct.Guild.Member
 
   @per_page 25
   @button_prefix "intro-report"
@@ -111,11 +111,12 @@ defmodule DopaTeam.IntroReportPage do
   defp label(:no_intro), do: "with No Intro"
   defp label(:without_intro_roles), do: "with neither Intro nor No Intro"
 
-  @spec line(Member.t()) :: String.t()
-  defp line(%Member{} = member), do: "<@#{member.user_id}> · joined #{joined(member.joined_at)}"
+  @spec line(GuildMember.t()) :: String.t()
+  defp line(%GuildMember{} = member),
+    do: "<@#{member.user_id}> · joined #{joined(member.joined_at)}"
 
   # discord can leave out a member's join date
-  @spec joined(Member.joined_at()) :: String.t()
+  @spec joined(GuildMember.joined_at()) :: String.t()
   defp joined(nil), do: "unknown"
   defp joined(unix_seconds), do: unix_seconds |> DateTime.from_unix!() |> Date.to_string()
 end

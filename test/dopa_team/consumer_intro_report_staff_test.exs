@@ -3,6 +3,7 @@ defmodule DopaTeam.ConsumerIntroReportStaffTest do
   # this can't run alongside other tests that start them
   use ExUnit.Case, async: false
 
+  import DopaTeam.Factory
   import Mox
 
   alias DopaTeam.{Consumer, DiscordMock, ReportStore}
@@ -37,7 +38,7 @@ defmodule DopaTeam.ConsumerIntroReportStaffTest do
     end)
 
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
-      {:ok, [%Member{user_id: 10, roles: [1]}]}
+      {:ok, [guild_member(10, roles: [1])]}
     end)
 
     expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 900}, response ->

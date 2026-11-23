@@ -7,6 +7,7 @@ defmodule DopaTeam.Discord do
   which passes each call to nostrum's api modules; tests set a mock instead.
   """
 
+  alias DopaTeam.Discord.GuildMember
   alias Nostrum.Struct.{Channel, Guild, Interaction, Message, User}
   alias Nostrum.Struct.Guild.{Member, Role}
 
@@ -63,9 +64,10 @@ defmodule DopaTeam.Discord do
 
   @doc """
   fetches one page of a server's members, up to `limit:` of them with user
-  ids above `after:`
+  ids above `after:`, each with their username and whether they are a bot
   """
-  @callback list_guild_members(Guild.id(), list_options()) :: {:ok, [Member.t()]} | error()
+  @callback list_guild_members(Guild.id(), list_options()) ::
+              {:ok, [GuildMember.t()]} | error()
 
   @doc "changes a member of a server"
   @callback modify_guild_member(Guild.id(), User.id(), member_options()) ::

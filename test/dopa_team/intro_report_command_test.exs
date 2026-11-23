@@ -1,13 +1,14 @@
 defmodule DopaTeam.IntroReportCommandTest do
   use ExUnit.Case, async: true
 
+  import DopaTeam.Factory
   import ExUnit.CaptureLog
   import Mox
 
   alias DopaTeam.DiscordMock
   alias DopaTeam.IntroReportCommand
   alias DopaTeam.{MemberReport, ReportStore}
-  alias Nostrum.Struct.{ApplicationCommandInteractionData, Interaction, Message, User}
+  alias Nostrum.Struct.{ApplicationCommandInteractionData, Interaction, Message}
   alias Nostrum.Struct.Guild.{Member, Role}
 
   @guild_id 1_176_811_717_213_306_880
@@ -63,13 +64,11 @@ defmodule DopaTeam.IntroReportCommandTest do
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
       {:ok,
        [
-         %Member{user_id: 10, roles: [1], joined_at: 1_767_225_600},
-         %Member{user_id: 11, roles: [3], joined_at: 1_767_225_600},
-         %Member{user_id: 12, roles: [], joined_at: 1_767_225_600}
+         guild_member(10, roles: [1], joined_at: 1_767_225_600),
+         guild_member(11, roles: [3], joined_at: 1_767_225_600),
+         guild_member(12, joined_at: 1_767_225_600)
        ]}
     end)
-
-    stub(DiscordMock, :get_user, fn user_id -> {:ok, %User{id: user_id, bot: nil}} end)
 
     expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 900}, response ->
       send(test_pid, {:edited, response})
@@ -190,10 +189,8 @@ defmodule DopaTeam.IntroReportCommandTest do
     stub(DiscordMock, :create_interaction_response, fn _interaction, _response -> {:ok} end)
 
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
-      {:ok, [%Member{user_id: 10, roles: [1]}, %Member{user_id: 12, roles: []}]}
+      {:ok, [guild_member(10, roles: [1]), guild_member(12)]}
     end)
-
-    stub(DiscordMock, :get_user, fn user_id -> {:ok, %User{id: user_id, bot: nil}} end)
 
     expect(DiscordMock, :edit_interaction_response, fn %Interaction{id: 900}, response ->
       send(test_pid, {:edited, response})
@@ -237,7 +234,7 @@ defmodule DopaTeam.IntroReportCommandTest do
     end
 
     defp no_intro_members(count) do
-      for n <- 1..count, do: %Member{user_id: n, roles: [1], joined_at: 1_767_225_600 + n}
+      for n <- 1..count, do: guild_member(n, roles: [1], joined_at: 1_767_225_600 + n)
     end
 
     test "a click on a stored report shows the page it asks for", context do

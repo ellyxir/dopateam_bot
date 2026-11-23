@@ -1,13 +1,13 @@
 defmodule DopaTeam.MemberReportTest do
   use ExUnit.Case, async: true
 
-  import ExUnit.CaptureLog
   import Mox
+
+  import DopaTeam.Factory
 
   alias DopaTeam.DiscordMock
   alias DopaTeam.MemberReport
-  alias Nostrum.Struct.Guild.{Member, Role}
-  alias Nostrum.Struct.User
+  alias Nostrum.Struct.Guild.Role
 
   @guild_id 1_176_811_717_213_306_880
 
@@ -27,12 +27,10 @@ defmodule DopaTeam.MemberReportTest do
        ]}
     end)
 
-    stub(DiscordMock, :get_user, fn user_id -> {:ok, %User{id: user_id, bot: nil}} end)
-
     :ok
   end
 
-  defp member(user_id, roles), do: %Member{user_id: user_id, roles: roles}
+  defp member(user_id, roles), do: guild_member(user_id, roles: roles)
 
   test "lists the members who have No Intro" do
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
@@ -63,41 +61,13 @@ defmodule DopaTeam.MemberReportTest do
     assert Enum.map(report.without_intro_roles, & &1.user_id) == [12, 13]
   end
 
-  test "leaves bots out, looking up only members with neither role" do
+  test "leaves bots out of the members with neither role" do
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
-      {:ok,
-       [
-         member(10, [@no_intro_role]),
-         member(11, [@intro_role]),
-         member(12, []),
-         member(13, [@adult_role])
-       ]}
-    end)
-
-    expect(DiscordMock, :get_user, 2, fn
-      12 -> {:ok, %User{id: 12, bot: true}}
-      13 -> {:ok, %User{id: 13, bot: nil}}
+      {:ok, [guild_member(12, bot?: true), member(13, [@adult_role])]}
     end)
 
     assert {:ok, report} = MemberReport.build(@guild_id)
     assert Enum.map(report.without_intro_roles, & &1.user_id) == [13]
-  end
-
-  test "leaves out a member whose bot lookup fails, keeping the rest" do
-    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
-      {:ok, [member(12, []), member(13, [@adult_role])]}
-    end)
-
-    stub(DiscordMock, :get_user, fn
-      12 -> {:error, %Nostrum.Error.ApiError{status_code: 500}}
-      13 -> {:ok, %User{id: 13, bot: nil}}
-    end)
-
-    {result, log} = with_log(fn -> MemberReport.build(@guild_id) end)
-
-    assert {:ok, report} = result
-    assert Enum.map(report.without_intro_roles, & &1.user_id) == [13]
-    assert log =~ "12"
   end
 
   test "follows the pages until a page comes back short" do
