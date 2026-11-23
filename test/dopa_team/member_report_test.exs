@@ -61,6 +61,24 @@ defmodule DopaTeam.MemberReportTest do
     assert Enum.map(report.without_intro_roles, & &1.user_id) == [12, 13]
   end
 
+  test "counts the Access role as having done an intro" do
+    stub(DiscordMock, :get_guild_roles, fn @guild_id ->
+      {:ok,
+       [
+         %Role{id: @no_intro_role, name: "No Intro"},
+         %Role{id: @intro_role, name: "Intro"},
+         %Role{id: 5, name: "Access"}
+       ]}
+    end)
+
+    stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
+      {:ok, [member(12, [5]), member(13, [])]}
+    end)
+
+    assert {:ok, report} = MemberReport.build(@guild_id)
+    assert Enum.map(report.without_intro_roles, & &1.user_id) == [13]
+  end
+
   test "leaves bots out of the members with neither role" do
     stub(DiscordMock, :list_guild_members, fn @guild_id, _options ->
       {:ok, [guild_member(12, bot?: true), member(13, [@adult_role])]}

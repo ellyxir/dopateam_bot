@@ -11,6 +11,8 @@ defmodule DopaTeam.MemberReport do
 
   @no_intro_role_name "No Intro"
   @intro_role_name "Intro"
+  # a role that counts as having done an intro; not every server has it
+  @access_role_name "Access"
 
   @enforce_keys [:member_count, :no_intro, :without_intro_roles]
   defstruct [:member_count, :no_intro, :without_intro_roles]
@@ -18,7 +20,8 @@ defmodule DopaTeam.MemberReport do
   @typedoc """
   * `member_count` - how many members the server has
   * `no_intro` - members with the No Intro role
-  * `without_intro_roles` - members, not bots, with neither Intro nor No Intro
+  * `without_intro_roles` - members, not bots, with none of Intro, No Intro
+    and Access
   """
   @type t() :: %__MODULE__{
           member_count: non_neg_integer(),
@@ -51,11 +54,14 @@ defmodule DopaTeam.MemberReport do
          {:ok, no_intro_role_id} <- role_id(roles, @no_intro_role_name),
          {:ok, intro_role_id} <- role_id(roles, @intro_role_name),
          {:ok, members} <- fetch_members(guild_id, page_size, 0, []) do
+      intro_role_ids =
+        case role_id(roles, @access_role_name) do
+          {:ok, access_role_id} -> [no_intro_role_id, intro_role_id, access_role_id]
+          {:error, _missing} -> [no_intro_role_id, intro_role_id]
+        end
+
       without_intro_roles =
-        Enum.reject(
-          members,
-          &(&1.bot? or no_intro_role_id in &1.roles or intro_role_id in &1.roles)
-        )
+        Enum.reject(members, &(&1.bot? or Enum.any?(&1.roles, fn id -> id in intro_role_ids end)))
 
       {:ok,
        %__MODULE__{
